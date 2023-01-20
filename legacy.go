@@ -14,20 +14,12 @@ import (
 // TODO: We should eventually remove this file, along with `legacy_test.go`.
 
 type checkpointPackageSnippet struct {
-	// Summary is required for the UI package listing/searching
-	// function, so we store the latest summary with each package.
-	Summary string `json:"s" rsf:"s"`
-
-	// The following fields are recorded in the `packages_v2_macro_association`
-	// table.
+	Summary      string `json:"s" rsf:"s"`
 	Version      string `json:"v" rsf:"version"`
 	Sha256Sum    string `json:"sha" rsf:"sha,fixed:64"`
 	RDep         string `json:"r_dep,omitempty" rsf:"r_dep"`
 	Path         string `json:"path,omitempty" rsf:"path"`
 	FieldSetHash string `json:"fsh" rsf:"fsh,fixed:32""`
-
-	// FieldSetData is stored in `packages_v2_fieldsets` and provides fast
-	// access to the `ShortDescription` data for a package.
 	FieldSetData string `json:"fsd" rsf:"fsd"`
 }
 
