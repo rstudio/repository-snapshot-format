@@ -1,4 +1,4 @@
-// Copyright (C) 2022 by Posit Software, PBC
+// Copyright (C) 2023 by Posit Software, PBC
 package rsf
 
 import (
@@ -20,7 +20,7 @@ func TestWriterSuite(t *testing.T) {
 func (s *WriterSuite) TestNewWriter() {
 	buf := &bytes.Buffer{}
 	w := NewWriter(buf)
-	s.Assert().Equal(&writer{f: buf}, w)
+	s.Assert().Equal(&rsfWriter{writer: buf}, w)
 }
 
 func (s *WriterSuite) TestDiscreteWrites() {
@@ -68,15 +68,17 @@ func (s *WriterSuite) TestWriteObjectString() {
 
 	// Write a variable-length string
 	t := &tag{}
-	err := w.(*writer).writeString("test", t, buf)
+	sz, err := w.(*rsfWriter).writeString("test", t, buf)
 	s.Assert().Nil(err)
+	s.Assert().Equal(8, sz)
 
 	// Switch to fixed-length string
 	t.fixed = 8
-	err = w.(*writer).writeString("test", t, buf)
+	_, err = w.(*rsfWriter).writeString("test", t, buf)
 	s.Assert().ErrorContains(err, "size 4 does not match expected size 8")
-	err = w.(*writer).writeString("test-now", t, buf)
+	sz, err = w.(*rsfWriter).writeString("test-now", t, buf)
 	s.Assert().Nil(err)
+	s.Assert().Equal(8, sz)
 	s.Assert().Equal([]byte{
 		// 4 bytes in length (header for variable-length string)
 		0x4, 0x0, 0x0, 0x0,
@@ -119,14 +121,16 @@ func (s *WriterSuite) TestWriteObjectArray() {
 	}
 
 	// Error
-	err := w.(*writer).writeArray(reflect.ValueOf(a), t, buf)
+	_, err := w.(*rsfWriter).writeArray(reflect.ValueOf(a), t, buf)
 	s.Assert().ErrorContains(err, "size 18 does not match expected size 10")
 
 	// Fix error
 	a[0].Date = "2020-10-01"
 	buf.Reset()
-	err = w.(*writer).writeArray(reflect.ValueOf(a), t, buf)
+	sz, err := w.(*rsfWriter).writeArray(reflect.ValueOf(a), t, buf)
 	s.Assert().Nil(err)
+	s.Assert().Equal(126, sz)
+	s.Assert().Equal(126, buf.Len())
 	s.Assert().Equal([]byte{
 		//
 		// Array Header
@@ -222,9 +226,10 @@ func (s *WriterSuite) TestWriteObjectWithArrayIndex() {
 		},
 	}
 
-	err := w.WriteObject(a)
+	sz, err := w.WriteObject(a)
 	s.Assert().Nil(err)
 	// Object should use 110 bytes.
+	s.Assert().Equal(110, sz)
 	s.Assert().Len(buf.Bytes(), 110)
 	// Verify bytes.
 	s.Assert().Equal([]byte{
@@ -324,9 +329,10 @@ func (s *WriterSuite) TestWriteObjectNoArrayIndex() {
 		},
 	}
 
-	err := w.WriteObject(a)
+	sz, err := w.WriteObject(a)
 	s.Assert().Nil(err)
 	// Object should use 98 bytes since there is no array index
+	s.Assert().Equal(98, sz)
 	s.Assert().Len(buf.Bytes(), 98)
 	// Verify bytes.
 	s.Assert().Equal([]byte{

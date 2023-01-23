@@ -1,4 +1,4 @@
-// Copyright (C) 2022 by Posit Software, PBC
+// Copyright (C) 2023 by Posit Software, PBC
 package rsf
 
 import (
@@ -11,42 +11,43 @@ import (
 	"strings"
 )
 
-type writer struct {
-	f io.Writer
+type rsfWriter struct {
+	writer io.Writer
 }
 
 func NewWriter(f io.Writer) Writer {
-	return &writer{f: f}
+	return &rsfWriter{writer: f}
 }
 
-func (f *writer) WriteObject(v any) error {
+func (f *rsfWriter) WriteObject(v any) (int, error) {
 	var buf = &bytes.Buffer{}
-	var err error
-	err = f.writeObject(reflect.ValueOf(v), &tag{}, buf)
+	var totalSz int
+	totalSz, err := f.writeObject(reflect.ValueOf(v), &tag{}, buf)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	// Write size of full record
-	bs := make([]byte, 4)
-	recordSize := buf.Len() + 4
+	bs := make([]byte, sizeFieldLen)
+	recordSize := buf.Len() + sizeFieldLen
 	binary.LittleEndian.PutUint32(bs, uint32(recordSize))
-	_, err = f.f.Write(bs)
+	sz, err := f.writer.Write(bs)
 	if err != nil {
-		return err
+		return 0, err
 	}
+	totalSz += sz
 
 	// Write initial buffer. This includes the name and the number
 	// of snapshots.
-	_, err = io.Copy(f.f, buf)
+	_, err = io.Copy(f.writer, buf)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
-	return nil
+	return totalSz, nil
 }
 
-func (f *writer) writeObject(v reflect.Value, t *tag, buf *bytes.Buffer) error {
+func (f *rsfWriter) writeObject(v reflect.Value, t *tag, buf *bytes.Buffer) (int, error) {
 	switch v.Type().Kind() {
 	case reflect.Array, reflect.Slice:
 		return f.writeArray(v, t, buf)
@@ -55,14 +56,14 @@ func (f *writer) writeObject(v reflect.Value, t *tag, buf *bytes.Buffer) error {
 	case reflect.String:
 		return f.writeString(v.String(), t, buf)
 	case reflect.Bool:
-		_, err := f.WriteBoolField(0, v.Bool(), buf)
-		return err
+		return f.WriteBoolField(0, v.Bool(), buf)
 	default:
-		return fmt.Errorf("unknown field type %#v: %#v", v.Type().Kind(), v)
+		return 0, fmt.Errorf("unknown field type %#v: %#v", v.Type().Kind(), v)
 	}
 }
 
-func (f *writer) writeStruct(v reflect.Value, tParent *tag, buf *bytes.Buffer) error {
+func (f *rsfWriter) writeStruct(v reflect.Value, tParent *tag, buf *bytes.Buffer) (int, error) {
+	var totalSz int
 	for i := 0; i < v.NumField(); i++ {
 		// Get the field tag value
 		rawTag := v.Type().Field(i).Tag.Get(tagName)
@@ -91,7 +92,7 @@ func (f *writer) writeStruct(v reflect.Value, tParent *tag, buf *bytes.Buffer) e
 					var err error
 					t.fixed, err = strconv.Atoi(fixedParts[1])
 					if err != nil {
-						return err
+						return 0, err
 					}
 				}
 			}
@@ -101,16 +102,17 @@ func (f *writer) writeStruct(v reflect.Value, tParent *tag, buf *bytes.Buffer) e
 			}
 		}
 		if !skip {
-			err := f.writeObject(fieldVal, t, buf)
+			sz, err := f.writeObject(fieldVal, t, buf)
 			if err != nil {
-				return err
+				return 0, err
 			}
+			totalSz += sz
 		}
 	}
-	return nil
+	return totalSz, nil
 }
 
-func (f *writer) writeArray(v reflect.Value, t *tag, buf *bytes.Buffer) error {
+func (f *rsfWriter) writeArray(v reflect.Value, t *tag, buf *bytes.Buffer) (int, error) {
 	var snapIndexBuf *bytes.Buffer
 	var snapBuf *bytes.Buffer
 	if t.index != "" {
@@ -119,79 +121,79 @@ func (f *writer) writeArray(v reflect.Value, t *tag, buf *bytes.Buffer) error {
 	} else {
 		snapBuf = buf
 	}
-	_, err := f.WriteSizeField(0, v.Len(), buf)
+	var totalSz int
+	totalSz, err := f.WriteSizeField(0, v.Len(), buf)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	var lastLen int
+	var sz int
 	for i := 0; i < v.Len(); i++ {
 		el := v.Index(i)
-		err = f.writeObject(el, t, snapBuf)
+		sz, err = f.writeObject(el, t, snapBuf)
 		if err != nil {
-			return err
+			return 0, err
 		}
+		totalSz += sz
 		bufLen := snapBuf.Len()
+
 		if t.index != "" {
-			_, err = f.WriteFixedStringField(0, t.indexSz, t.indexVal, snapIndexBuf)
+			sz, err = f.WriteFixedStringField(0, t.indexSz, t.indexVal, snapIndexBuf)
 			if err != nil {
-				return err
+				return 0, err
 			}
-			_, err = f.WriteSizeField(0, bufLen-lastLen, snapIndexBuf)
+			totalSz += sz
+			sz, err = f.WriteSizeField(0, bufLen-lastLen, snapIndexBuf)
 			if err != nil {
-				return err
+				return 0, err
 			}
+			totalSz += sz
 			lastLen = bufLen
 		}
 	}
 	if t.index != "" {
 		_, err = io.Copy(buf, snapIndexBuf)
 		if err != nil {
-			return err
+			return 0, err
 		}
 		_, err = io.Copy(buf, snapBuf)
 		if err != nil {
-			return err
+			return 0, err
 		}
 	}
-	return nil
+	return totalSz, nil
 }
 
-func (f *writer) writeString(s string, t *tag, buf *bytes.Buffer) error {
+func (f *rsfWriter) writeString(s string, t *tag, buf *bytes.Buffer) (int, error) {
 	var err error
+	var sz int
 	if t.fixed > 0 {
-		_, err = f.WriteFixedStringField(0, t.fixed, s, buf)
+		sz, err = f.WriteFixedStringField(0, t.fixed, s, buf)
 	} else {
-		_, err = f.WriteStringField(0, s, buf)
+		sz, err = f.WriteStringField(0, s, buf)
 	}
-	return err
+	return sz, err
 }
 
-func (f *writer) WriteSizeField(pos int, val int, r io.Writer) (int, error) {
-	var i, sz int
-	var err error
-
+func (f *rsfWriter) WriteSizeField(pos int, val int, r io.Writer) (int, error) {
 	// Write size
-	bs := make([]byte, 4)
+	bs := make([]byte, sizeFieldLen)
 	binary.LittleEndian.PutUint32(bs, uint32(val))
-	i, err = r.Write(bs)
+	sz, err := r.Write(bs)
 	if err != nil {
 		return 0, err
 	}
-	sz += i
 
 	return pos + sz, nil
 }
 
-func (f *writer) WriteFixedStringField(pos, sz int, val string, r io.Writer) (int, error) {
-	var i int
-	var err error
-
+func (f *rsfWriter) WriteFixedStringField(pos, sz int, val string, r io.Writer) (int, error) {
 	if sz != len(val) {
 		return 0, fmt.Errorf("size %d does not match expected size %d", len(val), sz)
 	}
 
 	// Write value
-	i, err = r.Write([]byte(val))
+	i, err := r.Write([]byte(val))
 	if err != nil {
 		return 0, err
 	}
@@ -202,21 +204,17 @@ func (f *writer) WriteFixedStringField(pos, sz int, val string, r io.Writer) (in
 	return pos + sz, nil
 }
 
-func (f *writer) WriteStringField(pos int, val string, r io.Writer) (int, error) {
-	var i, sz int
-	var err error
-
+func (f *rsfWriter) WriteStringField(pos int, val string, r io.Writer) (int, error) {
 	// Write size
-	bs := make([]byte, 4)
+	bs := make([]byte, sizeFieldLen)
 	binary.LittleEndian.PutUint32(bs, uint32(len(val)))
-	i, err = r.Write(bs)
+	sz, err := r.Write(bs)
 	if err != nil {
 		return 0, err
 	}
-	sz += i
 
 	// Write value
-	i, err = r.Write([]byte(val))
+	i, err := r.Write([]byte(val))
 	if err != nil {
 		return 0, err
 	}
@@ -225,10 +223,7 @@ func (f *writer) WriteStringField(pos int, val string, r io.Writer) (int, error)
 	return pos + sz, nil
 }
 
-func (f *writer) WriteBoolField(pos int, val bool, r io.Writer) (int, error) {
-	var i, sz int
-	var err error
-
+func (f *rsfWriter) WriteBoolField(pos int, val bool, r io.Writer) (int, error) {
 	// Write value
 	var b []byte
 	if val {
@@ -236,11 +231,10 @@ func (f *writer) WriteBoolField(pos int, val bool, r io.Writer) (int, error) {
 	} else {
 		b = []byte{0}
 	}
-	i, err = r.Write(b)
+	sz, err := r.Write(b)
 	if err != nil {
 		return 0, err
 	}
-	sz += i
 
 	return pos + sz, nil
 }

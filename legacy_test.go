@@ -1,4 +1,4 @@
-// Copyright (C) 2022 by Posit Software, PBC
+// Copyright (C) 2023 by Posit Software, PBC
 package rsf
 
 import (
@@ -70,7 +70,7 @@ func (s *LegacySuite) TestWritePackageCRAN() {
 
 	buf := &bytes.Buffer{}
 	w := NewWriter(buf)
-	err := w.(*writer).writePackage("test-package", snapshots)
+	err := w.(*rsfWriter).writePackage("test-package", snapshots)
 	s.Assert().Nil(err)
 	s.Assert().Equal(""+
 		"\x88\x03\x00\x00\f\x00\x00\x00test-package\x03\x00\x00\x0020220228"+
@@ -98,8 +98,10 @@ func (s *LegacySuite) TestWritePackageCRAN() {
 
 	buf2 := &bytes.Buffer{}
 	w = NewWriter(buf2)
-	err = w.WriteObject(fullPackageRecord{Name: "test-package", Snapshots: snapshots})
+	sz, err := w.WriteObject(fullPackageRecord{Name: "test-package", Snapshots: snapshots})
 	s.Assert().Nil(err)
+	s.Assert().Equal(904, sz)
+	s.Assert().Equal(904, buf2.Len())
 	s.Assert().Equal(buf.String(), buf2.String())
 	s.Assert().EqualValues(buf.Bytes(), buf2.Bytes())
 }
@@ -130,7 +132,7 @@ func (s *LegacySuite) TestWritePackagePyPI() {
 
 	buf := &bytes.Buffer{}
 	w := NewWriter(buf)
-	err := w.(*writer).writePackagePyPI("next-package", "Next-Package", snapshots)
+	err := w.(*rsfWriter).writePackagePyPI("next-package", "Next-Package", snapshots)
 	s.Assert().Nil(err)
 	s.Assert().Equal(""+
 		"\x99\x00\x00\x00\f\x00\x00\x00next-package\f\x00\x00\x00Next-Package"+
@@ -142,12 +144,14 @@ func (s *LegacySuite) TestWritePackagePyPI() {
 
 	buf2 := &bytes.Buffer{}
 	w = NewWriter(buf2)
-	err = w.WriteObject(fullPackageRecordPyPI{
+	sz, err := w.WriteObject(fullPackageRecordPyPI{
 		CanonicalName: "next-package",
 		ProjectName:   "Next-Package",
 		Snapshots:     snapshots,
 	})
 	s.Assert().Nil(err)
+	s.Assert().Equal(153, sz)
+	s.Assert().Equal(153, buf2.Len())
 	s.Assert().Equal(buf.String(), buf2.String())
 	s.Assert().EqualValues(buf.Bytes(), buf2.Bytes())
 }

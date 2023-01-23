@@ -1,4 +1,4 @@
-// Copyright (C) 2022 by Posit Software, PBC
+// Copyright (C) 2023 by Posit Software, PBC
 package rsf
 
 import (
@@ -8,7 +8,7 @@ import (
 
 type Writer interface {
 	// WriteObject uses reflection and `rsf` struct tag annotations to write an object.
-	WriteObject(v any) error
+	WriteObject(v any) (int, error)
 
 	// WriteSizeField writes a 4-byte field that indicates a size (usually the
 	// size in bytes of an object or value, or an array length).
@@ -41,6 +41,11 @@ type Reader interface {
 	// Pos returns the current position in the read buffer.
 	Pos() int
 }
+
+// General constants
+const (
+	sizeFieldLen = 4
+)
 
 // Constants used by `rsf` struct tags
 const (

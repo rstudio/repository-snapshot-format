@@ -1,4 +1,4 @@
-// Copyright (C) 2022 by Posit Software, PBC
+// Copyright (C) 2023 by Posit Software, PBC
 package rsf
 
 import (
@@ -55,7 +55,7 @@ type fullPackageRecordPyPI struct {
 // Since this was used during the proof-of-concept work, I privatized the method and added a
 // unit test that proves that the new generic `WriteObject` method creates identical data.
 // We can eventually remove this, but it may be helpful to keep for reference temporarily.
-func (f *writer) writePackage(name string, snapshots []fullManifestSnapshot) error {
+func (f *rsfWriter) writePackage(name string, snapshots []fullManifestSnapshot) error {
 	var err error
 
 	// Define a few buffers.
@@ -156,26 +156,26 @@ func (f *writer) writePackage(name string, snapshots []fullManifestSnapshot) err
 	bs := make([]byte, 4)
 	recordSize := buf.Len() + snapshotBuf.Len() + snapshotIndexBuf.Len() + 4
 	binary.LittleEndian.PutUint32(bs, uint32(recordSize))
-	_, err = f.f.Write(bs)
+	_, err = f.writer.Write(bs)
 	if err != nil {
 		return err
 	}
 
 	// Write initial buffer. This includes the name and the number
 	// of snapshots.
-	_, err = io.Copy(f.f, buf)
+	_, err = io.Copy(f.writer, buf)
 	if err != nil {
 		return err
 	}
 
 	// Write snapshot index buffer
-	_, err = io.Copy(f.f, snapshotIndexBuf)
+	_, err = io.Copy(f.writer, snapshotIndexBuf)
 	if err != nil {
 		return err
 	}
 
 	// Write snapshots buffer
-	_, err = io.Copy(f.f, snapshotBuf)
+	_, err = io.Copy(f.writer, snapshotBuf)
 	if err != nil {
 		return err
 	}
@@ -187,7 +187,7 @@ func (f *writer) writePackage(name string, snapshots []fullManifestSnapshot) err
 // Since this was used during the proof-of-concept work, I privatized the method and added a
 // unit test that proves that the new generic `WriteObject` method creates identical data.
 // We can eventually remove this, but it may be helpful to keep for reference temporarily.
-func (f *writer) writePackagePyPI(cName, projectName string, snapshots []fullManifestSnapshotPyPI) error {
+func (f *rsfWriter) writePackagePyPI(cName, projectName string, snapshots []fullManifestSnapshotPyPI) error {
 	var err error
 
 	// Define a few buffers.
@@ -248,26 +248,26 @@ func (f *writer) writePackagePyPI(cName, projectName string, snapshots []fullMan
 	bs := make([]byte, 4)
 	recordSize := buf.Len() + snapshotBuf.Len() + snapshotIndexBuf.Len() + 4
 	binary.LittleEndian.PutUint32(bs, uint32(recordSize))
-	_, err = f.f.Write(bs)
+	_, err = f.writer.Write(bs)
 	if err != nil {
 		return err
 	}
 
 	// Write initial buffer. This includes the name and the number
 	// of snapshots.
-	_, err = io.Copy(f.f, buf)
+	_, err = io.Copy(f.writer, buf)
 	if err != nil {
 		return err
 	}
 
 	// Write snapshot index buffer
-	_, err = io.Copy(f.f, snapshotIndexBuf)
+	_, err = io.Copy(f.writer, snapshotIndexBuf)
 	if err != nil {
 		return err
 	}
 
 	// Write snapshots buffer
-	_, err = io.Copy(f.f, snapshotBuf)
+	_, err = io.Copy(f.writer, snapshotBuf)
 	if err != nil {
 		return err
 	}

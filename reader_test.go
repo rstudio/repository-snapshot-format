@@ -1,4 +1,4 @@
-// Copyright (C) 2022 by Posit Software, PBC
+// Copyright (C) 2023 by Posit Software, PBC
 package rsf
 
 import (
@@ -19,7 +19,7 @@ func TestReaderSuite(t *testing.T) {
 }
 
 func (s *ReaderSuite) TestNewReader() {
-	s.Assert().Equal(&reader{}, NewReader())
+	s.Assert().Equal(&rsfReader{}, NewReader())
 }
 
 // This method returns the same data used by `TestWriteObjectWithArrayIndex`
@@ -69,7 +69,7 @@ func (s *ReaderSuite) getData() *bytes.Buffer {
 	}
 
 	// Write the test data to the buffer
-	err := w.WriteObject(a)
+	_, err := w.WriteObject(a)
 	s.Assert().Nil(err)
 	return buf
 }

@@ -1,4 +1,4 @@
-// Copyright (C) 2022 by Posit Software, PBC
+// Copyright (C) 2023 by Posit Software, PBC
 package rsf
 
 import (
@@ -8,19 +8,19 @@ import (
 	"io"
 )
 
-type reader struct {
+type rsfReader struct {
 	pos int
 }
 
 func NewReader() Reader {
-	return &reader{}
+	return &rsfReader{}
 }
 
-func (f *reader) Pos() int {
+func (f *rsfReader) Pos() int {
 	return f.pos
 }
 
-func (f *reader) Discard(sz int, r *bufio.Reader) error {
+func (f *rsfReader) Discard(sz int, r *bufio.Reader) error {
 	i, err := r.Discard(sz)
 	if err != nil {
 		return err
@@ -31,30 +31,23 @@ func (f *reader) Discard(sz int, r *bufio.Reader) error {
 	return nil
 }
 
-func (f *reader) ReadSizeField(r io.Reader) (int, error) {
-	var i int
-	var sz uint32
-	var err error
-
-	bs := make([]byte, 4)
-	i, err = io.ReadFull(r, bs)
+func (f *rsfReader) ReadSizeField(r io.Reader) (int, error) {
+	bs := make([]byte, sizeFieldLen)
+	i, err := io.ReadFull(r, bs)
 	if err != nil {
 		return 0, err
-	} else if i != 4 {
-		return 0, fmt.Errorf("unexpected read size %d; expected %d", i, 4)
+	} else if i != sizeFieldLen {
+		return 0, fmt.Errorf("unexpected read size %d; expected %d", i, sizeFieldLen)
 	}
 	f.pos += i
-	sz = binary.LittleEndian.Uint32(bs)
+	sz := binary.LittleEndian.Uint32(bs)
 	return int(sz), nil
 }
 
-func (f *reader) ReadFixedStringField(sz int, r io.Reader) (string, error) {
-	var i int
-	var err error
-
+func (f *rsfReader) ReadFixedStringField(sz int, r io.Reader) (string, error) {
 	// Read string field
 	bs := make([]byte, sz)
-	i, err = io.ReadFull(r, bs)
+	i, err := io.ReadFull(r, bs)
 	if err != nil {
 		return "", err
 	} else if i != sz {
@@ -65,22 +58,18 @@ func (f *reader) ReadFixedStringField(sz int, r io.Reader) (string, error) {
 	return string(bs), nil
 }
 
-func (f *reader) ReadStringField(r io.Reader) (string, error) {
-	var i int
-	var sz uint32
-	var err error
-
+func (f *rsfReader) ReadStringField(r io.Reader) (string, error) {
 	// read size
-	bs := make([]byte, 4)
-	i, err = io.ReadFull(r, bs)
+	bs := make([]byte, sizeFieldLen)
+	i, err := io.ReadFull(r, bs)
 	if err != nil {
 		return "", err
-	} else if i != 4 {
-		return "", fmt.Errorf("unexpected read size %d; expected %d", i, 4)
+	} else if i != sizeFieldLen {
+		return "", fmt.Errorf("unexpected read size %d; expected %d", i, sizeFieldLen)
 	}
 	f.pos += i
 
-	sz = binary.LittleEndian.Uint32(bs)
+	sz := binary.LittleEndian.Uint32(bs)
 	// Read string field
 	bs = make([]byte, sz)
 	i, err = io.ReadFull(r, bs)
@@ -94,13 +83,10 @@ func (f *reader) ReadStringField(r io.Reader) (string, error) {
 	return string(bs), nil
 }
 
-func (f *reader) ReadBoolField(r io.Reader) (bool, error) {
-	var i int
-	var err error
-
+func (f *rsfReader) ReadBoolField(r io.Reader) (bool, error) {
 	// Read bool field
 	bs := make([]byte, 1)
-	i, err = io.ReadFull(r, bs)
+	i, err := io.ReadFull(r, bs)
 	if err != nil {
 		return false, err
 	} else if i != 1 {
