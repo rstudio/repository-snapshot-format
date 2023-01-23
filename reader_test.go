@@ -5,6 +5,7 @@ import (
 	"bufio"
 	"bytes"
 	"io"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
@@ -161,4 +162,27 @@ func (s *ReaderSuite) TestRead() {
 	// Verify at EOF.
 	_, err = r.ReadSizeField(buf)
 	s.Assert().ErrorIs(err, io.EOF)
+
+	// Dump buffer to temp file to test `Seek`
+	tmp, err := os.CreateTemp("", "")
+	s.Assert().Nil(err)
+	defer os.Remove(tmp.Name())
+	buf = bufio.NewReader(s.getData())
+	_, err = io.Copy(tmp, buf)
+
+	// Seek back to the last array element.
+	err = r.Seek(88, tmp)
+	s.Assert().Nil(err)
+	// Position set to 88
+	s.Assert().Equal(88, r.Pos())
+
+	// Read last array element's "Name" field again from the temp file.
+	name, err = r.ReadStringField(tmp)
+	s.Assert().Nil(err)
+	s.Assert().Equal("this is from 2022", name)
+	// Position increased by 4+17. String size uses 4 bytes and
+	// string value uses 17 bytes.
+	// 88+21=109
+	s.Assert().Equal(109, r.Pos())
+
 }

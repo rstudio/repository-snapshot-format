@@ -20,6 +20,12 @@ func (f *rsfReader) Pos() int {
 	return f.pos
 }
 
+func (f *rsfReader) Seek(pos int, r io.Seeker) error {
+	i, err := r.Seek(int64(pos), 0)
+	f.pos = int(i)
+	return err
+}
+
 func (f *rsfReader) Discard(sz int, r *bufio.Reader) error {
 	i, err := r.Discard(sz)
 	if err != nil {

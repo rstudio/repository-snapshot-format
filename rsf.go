@@ -35,7 +35,10 @@ type Reader interface {
 	ReadStringField(r io.Reader) (string, error)
 	ReadBoolField(r io.Reader) (bool, error)
 
-	// Discard discards `sz` bytes. Used to quickly seek another file position.
+	// Seek is used to seek a file position.
+	Seek(pos int, r io.Seeker) error
+
+	// Discard discards `sz` bytes.
 	Discard(sz int, r *bufio.Reader) error
 
 	// Pos returns the current position in the read buffer.
