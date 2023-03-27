@@ -129,11 +129,14 @@ func (s *WriterSuite) TestWriteObjectArray() {
 	buf.Reset()
 	sz, err := w.(*rsfWriter).writeArray(reflect.ValueOf(a), t, buf)
 	s.Assert().Nil(err)
-	s.Assert().Equal(126, sz)
-	s.Assert().Equal(126, buf.Len())
+	s.Assert().Equal(130, sz)
+	s.Assert().Equal(130, buf.Len())
 	s.Assert().Equal([]byte{
 		//
 		// Array Header
+		//
+		// Array is 130 bytes in size
+		0x82, 0x0, 0x0, 0x0,
 		//
 		// Array has 3 elements
 		0x3, 0x0, 0x0, 0x0,
@@ -228,16 +231,61 @@ func (s *WriterSuite) TestWriteObjectWithArrayIndex() {
 
 	sz, err := w.WriteObject(a)
 	s.Assert().Nil(err)
-	// Object should use 110 bytes.
-	s.Assert().Equal(110, sz)
-	s.Assert().Len(buf.Bytes(), 110)
+	// Object should use 186 bytes.
+	s.Assert().Equal(186, sz)
+	s.Assert().Len(buf.Bytes(), 186)
 	// Verify bytes.
 	s.Assert().Equal([]byte{
 		//
+		// Object index header
+		//
+		// Full size of index header is 72 bytes
+		0x48, 0x0, 0x0, 0x0,
+		//
+		// Fields Index
+		//
+		// "company" field is 7 bytes in length
+		0x7, 0x0, 0x0, 0x0,
+		// "company" field name
+		0x63, 0x6f, 0x6d, 0x70, 0x61, 0x6e, 0x79,
+		// "company" field type 1 indicates variable-length
+		0x1, 0x0, 0x0, 0x0,
+		//
+		// "ready" field is 5 bytes in length
+		0x5, 0x0, 0x0, 0x0,
+		// "ready" field name
+		0x72, 0x65, 0x61, 0x64, 0x79,
+		// "ready" field type 2 indicates fixed-length
+		0x2, 0x0, 0x0, 0x0,
+		//
+		// "list" field is 4 bytes in length
+		0x4, 0x0, 0x0, 0x0,
+		// "list field name
+		0x6c, 0x69, 0x73, 0x74,
+		// "list" field type 3 indicates array
+		0x3, 0x0, 0x0, 0x0,
+		//
+		// "name" field is 4 bytes in length
+		0x4, 0x0, 0x0, 0x0,
+		// "name" field name
+		0x6e, 0x61, 0x6d, 0x65,
+		// "name" field type 1 indicates variable length
+		0x1, 0x0, 0x0, 0x0,
+		//
+		// "verified" field is 8 bytes in length
+		0x8, 0x0, 0x0, 0x0,
+		// "verified" field name
+		0x76, 0x65, 0x72, 0x69, 0x66, 0x69, 0x65, 0x64,
+		// "verified" field type 2 indicates fixed-length
+		0x2, 0x0, 0x0, 0x0,
+		//
+		// -- End of 72-byte object index header ---
+		//
 		// Object header
 		//
-		// Object size is 110 bytes
-		0x6e, 0x0, 0x0, 0x0,
+		// Object size is 114 bytes
+		0x72, 0x0, 0x0, 0x0,
+		//
 		// 5 byte variable-length string
 		0x5, 0x0, 0x0, 0x0,
 		// "posit"
@@ -246,6 +294,9 @@ func (s *WriterSuite) TestWriteObjectWithArrayIndex() {
 		0x1,
 		//
 		// Array Header
+		//
+		// Array is 100 bytes in size
+		0x64, 0x0, 0x0, 0x0,
 		//
 		// Array has 3 elements
 		0x3, 0x0, 0x0, 0x0,
@@ -285,6 +336,8 @@ func (s *WriterSuite) TestWriteObjectWithArrayIndex() {
 		0x74, 0x68, 0x69, 0x73, 0x20, 0x69, 0x73, 0x20, 0x66, 0x72, 0x6f, 0x6d, 0x20, 0x32, 0x30, 0x32, 0x32,
 		// verified:true
 		0x1,
+		//
+		// -- End of 114-byte object --
 	}, buf.Bytes())
 }
 
@@ -331,16 +384,67 @@ func (s *WriterSuite) TestWriteObjectNoArrayIndex() {
 
 	sz, err := w.WriteObject(a)
 	s.Assert().Nil(err)
-	// Object should use 98 bytes since there is no array index
-	s.Assert().Equal(98, sz)
-	s.Assert().Len(buf.Bytes(), 98)
+	// Object should use 186 bytes since there is no array index
+	s.Assert().Equal(186, sz)
+	s.Assert().Len(buf.Bytes(), 186)
 	// Verify bytes.
 	s.Assert().Equal([]byte{
 		//
+		// Object index header
+		//
+		// Full size of index header is 84 bytes
+		0x54, 0x0, 0x0, 0x0,
+		//
+		// Fields Index
+		//
+		// "company" field is 7 bytes in length
+		0x7, 0x0, 0x0, 0x0,
+		// "company" field name
+		0x63, 0x6f, 0x6d, 0x70, 0x61, 0x6e, 0x79,
+		// "company" field type 1 indicates variable-length
+		0x1, 0x0, 0x0, 0x0,
+		//
+		// "ready" field is 5 bytes in length
+		0x5, 0x0, 0x0, 0x0,
+		// "ready" field name
+		0x72, 0x65, 0x61, 0x64, 0x79,
+		// "ready" field type 2 indicates fixed-length
+		0x2, 0x0, 0x0, 0x0,
+		//
+		// "list" field is 7 bytes in length
+		0x4, 0x0, 0x0, 0x0,
+		// "list field name
+		0x6c, 0x69, 0x73, 0x74,
+		// "list" field type 3 indicates array
+		0x3, 0x0, 0x0, 0x0,
+		//
+		// "date" field is 4 bytes in length
+		0x4, 0x0, 0x0, 0x0,
+		// "date" field name
+		0x64, 0x61, 0x74, 0x65,
+		// "date" field type 2 indicates variable length
+		0x2, 0x0, 0x0, 0x0,
+		//
+		// "name" field is 4 bytes in length
+		0x4, 0x0, 0x0, 0x0,
+		// "name" field name
+		0x6e, 0x61, 0x6d, 0x65,
+		// "name" field type 1 indicates variable length
+		0x1, 0x0, 0x0, 0x0,
+		//
+		// "verified" field is 8 bytes in length
+		0x8, 0x0, 0x0, 0x0,
+		// "verified" field name
+		0x76, 0x65, 0x72, 0x69, 0x66, 0x69, 0x65, 0x64,
+		// "verified" field type 2 indicates fixed-length
+		0x2, 0x0, 0x0, 0x0,
+		//
+		// -- End of 84-byte object index header ---
+		//
 		// Object header
 		//
-		// Object size is 98 bytes
-		0x62, 0x0, 0x0, 0x0,
+		// Object size is 102 bytes
+		0x66, 0x0, 0x0, 0x0,
 		// 5 byte variable-length string
 		0x5, 0x0, 0x0, 0x0,
 		// "posit"
@@ -349,6 +453,9 @@ func (s *WriterSuite) TestWriteObjectNoArrayIndex() {
 		0x1,
 		//
 		// Array Header
+		//
+		// Array is 88 bytes in size
+		0x58, 0x0, 0x0, 0x0,
 		//
 		// Array has 3 elements
 		0x3, 0x0, 0x0, 0x0,
