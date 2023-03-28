@@ -11,6 +11,13 @@ import (
 
 type rsfReader struct {
 	pos int
+
+	// When reading an RSF file based on a struct, the first entry
+	// is an index. See `ReadIndex`.
+	index Index
+
+	// Saves the current position for advancing the reader.
+	at []string
 }
 
 func NewReader() Reader {
@@ -59,7 +66,6 @@ func (f *rsfReader) ReadInt64Field(r io.Reader) (int64, error) {
 	} else if i != binary.MaxVarintLen64 {
 		return 0, fmt.Errorf("unexpected read size %d; expected %d", i, sizeFieldLen)
 	}
-	fmt.Printf("bytes: %#v\n", bs)
 	f.pos += i
 	intVal, _ := binary.Varint(bs)
 	return intVal, nil

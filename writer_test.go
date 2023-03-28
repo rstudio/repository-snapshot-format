@@ -262,16 +262,16 @@ func (s *WriterSuite) TestWriteObjectWithArrayIndex() {
 
 	sz, err := w.WriteObject(a)
 	s.Assert().Nil(err)
-	// Object should use 229 bytes.
-	s.Assert().Equal(229, sz)
-	s.Assert().Len(buf.Bytes(), 229)
+	// Object should use 233 bytes.
+	s.Assert().Equal(233, sz)
+	s.Assert().Len(buf.Bytes(), 233)
 	// Verify bytes.
 	s.Assert().Equal([]byte{
 		//
 		// Object index header
 		//
 		// Full size of index header is 97 bytes
-		0x61, 0x0, 0x0, 0x0,
+		0x65, 0x0, 0x0, 0x0,
 		//
 		// Fields Index
 		//
@@ -286,15 +286,17 @@ func (s *WriterSuite) TestWriteObjectWithArrayIndex() {
 		0x5, 0x0, 0x0, 0x0,
 		// "ready" field name
 		0x72, 0x65, 0x61, 0x64, 0x79,
-		// "ready" field type 2 indicates fixed-length
-		0x2, 0x0, 0x0, 0x0,
+		// "ready" field type 2 indicates boolean
+		0x3, 0x0, 0x0, 0x0,
 		//
 		// "list" field is 4 bytes in length
 		0x4, 0x0, 0x0, 0x0,
 		// "list field name
 		0x6c, 0x69, 0x73, 0x74,
-		// "list" field type 3 indicates array
-		0x3, 0x0, 0x0, 0x0,
+		// "list" field type 4 indicates array
+		0x4, 0x0, 0x0, 0x0,
+		// "list" field has 2 subfields
+		0x2, 0x0, 0x0, 0x0,
 		//
 		// "name" field is 4 bytes in length
 		0x4, 0x0, 0x0, 0x0,
@@ -307,22 +309,22 @@ func (s *WriterSuite) TestWriteObjectWithArrayIndex() {
 		0x8, 0x0, 0x0, 0x0,
 		// "verified" field name
 		0x76, 0x65, 0x72, 0x69, 0x66, 0x69, 0x65, 0x64,
-		// "verified" field type 2 indicates fixed-length
-		0x2, 0x0, 0x0, 0x0,
+		// "verified" field type 3 indicates boolean
+		0x3, 0x0, 0x0, 0x0,
 		//
 		// "age" field is 3 bytes in length
 		0x3, 0x0, 0x0, 0x0,
 		// "age" field name
 		0x61, 0x67, 0x65,
-		// "age field type 2 indicates fixed length
-		0x2, 0x0, 0x0, 0x0,
+		// "age field type 7 indicates int64
+		0x7, 0x0, 0x0, 0x0,
 		//
 		// "rating" field is 6 bytes in length
 		0x6, 0x0, 0x0, 0x0,
 		// "rating" field name
 		0x72, 0x61, 0x74, 0x69, 0x6e, 0x67,
-		// "rating field type 2 indicates fixed length
-		0x2, 0x0, 0x0, 0x0,
+		// "rating field type 6 indicates float
+		0x6, 0x0, 0x0, 0x0,
 		//
 		// -- End of 72-byte object index header ---
 		//
@@ -433,16 +435,16 @@ func (s *WriterSuite) TestWriteObjectNoArrayIndex() {
 
 	sz, err := w.WriteObject(a)
 	s.Assert().Nil(err)
-	// Object should use 186 bytes since there is no array index
-	s.Assert().Equal(186, sz)
-	s.Assert().Len(buf.Bytes(), 186)
+	// Object should use 194 bytes since there is no array index
+	s.Assert().Equal(194, sz)
+	s.Assert().Len(buf.Bytes(), 194)
 	// Verify bytes.
 	s.Assert().Equal([]byte{
 		//
 		// Object index header
 		//
-		// Full size of index header is 84 bytes
-		0x54, 0x0, 0x0, 0x0,
+		// Full size of index header is 88 bytes
+		0x5c, 0x0, 0x0, 0x0,
 		//
 		// Fields Index
 		//
@@ -457,22 +459,26 @@ func (s *WriterSuite) TestWriteObjectNoArrayIndex() {
 		0x5, 0x0, 0x0, 0x0,
 		// "ready" field name
 		0x72, 0x65, 0x61, 0x64, 0x79,
-		// "ready" field type 2 indicates fixed-length
-		0x2, 0x0, 0x0, 0x0,
+		// "ready" field type 3 indicates boolean
+		0x3, 0x0, 0x0, 0x0,
 		//
-		// "list" field is 7 bytes in length
+		// "list" field is 4 bytes in length
 		0x4, 0x0, 0x0, 0x0,
 		// "list field name
 		0x6c, 0x69, 0x73, 0x74,
-		// "list" field type 3 indicates array
+		// "list" field type 4 indicates array
+		0x4, 0x0, 0x0, 0x0,
+		// "list" array has 3 subfields
 		0x3, 0x0, 0x0, 0x0,
 		//
 		// "date" field is 4 bytes in length
 		0x4, 0x0, 0x0, 0x0,
 		// "date" field name
 		0x64, 0x61, 0x74, 0x65,
-		// "date" field type 2 indicates variable length
+		// "date" field type 2 indicates fixed-length string
 		0x2, 0x0, 0x0, 0x0,
+		// "date" field is of fixed size 10
+		0xa, 0x0, 0x0, 0x0,
 		//
 		// "name" field is 4 bytes in length
 		0x4, 0x0, 0x0, 0x0,
@@ -485,8 +491,8 @@ func (s *WriterSuite) TestWriteObjectNoArrayIndex() {
 		0x8, 0x0, 0x0, 0x0,
 		// "verified" field name
 		0x76, 0x65, 0x72, 0x69, 0x66, 0x69, 0x65, 0x64,
-		// "verified" field type 2 indicates fixed-length
-		0x2, 0x0, 0x0, 0x0,
+		// "verified" field type 3 indicates boolean
+		0x3, 0x0, 0x0, 0x0,
 		//
 		// -- End of 84-byte object index header ---
 		//

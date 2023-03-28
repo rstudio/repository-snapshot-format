@@ -32,7 +32,7 @@ type Writer interface {
 	WriteFloatField(pos int, val float64, r io.Writer) (int, error)
 }
 
-// Reader - The Reader interface provides Read* methods analagous to the Write*
+// Reader - The Reader interface provides Read* methods analogous to the Write*
 // methods in the Writer interface. No `ReadObject` method is provided since
 // reading is likely to be customized per use case.
 type Reader interface {
@@ -42,6 +42,17 @@ type Reader interface {
 	ReadBoolField(r io.Reader) (bool, error)
 	ReadInt64Field(r io.Reader) (int64, error)
 	ReadFloatField(r io.Reader) (float64, error)
+
+	// AdvanceTo advances the reader to the field indicated by `fieldNames`.
+	AdvanceTo(buf *bufio.Reader, fieldNames ...string) error
+
+	// AdvanceToNextElement advances the reader to the end of the current
+	// struct.
+	AdvanceToNextElement(buf *bufio.Reader) error
+
+	// ReadIndex reads the object index at the top of an RSF file
+	ReadIndex(r io.Reader) error
+	SetIndex(i Index)
 
 	// Seek is used to seek a file position.
 	Seek(pos int, r io.Seeker) error

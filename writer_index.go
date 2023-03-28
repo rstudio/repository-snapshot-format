@@ -4,6 +4,7 @@ package rsf
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"reflect"
 )
 
@@ -29,11 +30,11 @@ Example:
 
   0x7, 0x0, 0x0, 0x0,                             // 7 bytes
   0x63, 0x6f, 0x6d, 0x70, 0x61, 0x6e, 0x79,       // "company"
-  0x1, 0x0, 0x0, 0x0,                             // FieldTypeVariable
+  0x1, 0x0, 0x0, 0x0,                             // FieldTypeVarStr
 
   0x5, 0x0, 0x0, 0x0,                             // 5 bytes
   0x72, 0x65, 0x61, 0x64, 0x79,                   // "ready"
-  0x2, 0x0, 0x0, 0x0,                             // FieldTypeFixed
+  0x2, 0x0, 0x0, 0x0,                             // FieldTypeFixedStr
 
   0x4, 0x0, 0x0, 0x0,                             // 4 bytes
   0x6c, 0x69, 0x73, 0x74,                         // "list"
@@ -41,18 +42,21 @@ Example:
 
   0x4, 0x0, 0x0, 0x0,                             // 4 bytes
   0x6e, 0x61, 0x6d, 0x65,                         // "name"
-  0x1, 0x0, 0x0, 0x0,                             // FieldTypeVariable
+  0x1, 0x0, 0x0, 0x0,                             // FieldTypeVarStr
 
   0x8, 0x0, 0x0, 0x0,                             // 8 bytes
   0x76, 0x65, 0x72, 0x69, 0x66, 0x69, 0x65, 0x64, // "verified"
-  0x2, 0x0, 0x0, 0x0,                             // FieldTypeFixed
+  0x2, 0x0, 0x0, 0x0,                             // FieldTypeFixedStr
 
 */
 
 const (
-	FieldTypeVariable = 1
-	FieldTypeFixed    = 2
-	FieldTypeArray    = 3
+	FieldTypeVarStr   = 1
+	FieldTypeFixedStr = 2
+	FieldTypeBool     = 3
+	FieldTypeArray    = 4
+	FieldTypeFloat    = 6
+	FieldTypeInt64    = 7
 )
 
 func (f *rsfWriter) writeIndexObject(v reflect.Type, t *tag, buf *bytes.Buffer) (int, error) {
@@ -60,40 +64,43 @@ func (f *rsfWriter) writeIndexObject(v reflect.Type, t *tag, buf *bytes.Buffer) 
 	case reflect.Array, reflect.Slice:
 		return f.writeIndexArray(v, t, buf)
 	case reflect.Struct:
-		return f.writeIndexStruct(v, t, buf)
+		sz, _, err := f.writeIndexStruct(v, t, buf)
+		return sz, err
 	case reflect.String:
 		return f.writeIndexString(t, buf)
 	case reflect.Bool:
-		return f.writeIndexFixed(t, buf)
+		return f.writeIndexFixed(t, FieldTypeBool, buf)
 	case reflect.Int, reflect.Int64, reflect.Int32, reflect.Int16, reflect.Int8:
-		return f.writeIndexFixed(t, buf)
+		return f.writeIndexFixed(t, FieldTypeInt64, buf)
 	case reflect.Float32, reflect.Float64:
-		return f.writeIndexFixed(t, buf)
+		return f.writeIndexFixed(t, FieldTypeFloat, buf)
 	default:
 		return 0, fmt.Errorf("unknown field type %#v: %#v", v.Kind(), v)
 	}
 }
 
-func (f *rsfWriter) writeIndexStruct(v reflect.Type, tParent *tag, buf *bytes.Buffer) (int, error) {
+func (f *rsfWriter) writeIndexStruct(v reflect.Type, tParent *tag, buf *bytes.Buffer) (int, int, error) {
 	var totalSz int
+	var count int
 	for i := 0; i < v.NumField(); i++ {
 		t := &tag{}
 		skip, err := getTagInfo(v, i, t, tParent, "")
 		if err != nil {
-			return 0, err
+			return 0, 0, err
 		}
 
 		if !skip {
 			var sz int
 			sz, err = f.writeIndexObject(v.Field(i).Type, t, buf)
 			if err != nil {
-				return 0, err
+				return 0, 0, err
 			}
 			totalSz += sz
+			count++
 		}
 	}
 
-	return totalSz, nil
+	return totalSz, count, nil
 }
 
 func (f *rsfWriter) writeIndexArray(v reflect.Type, t *tag, buf *bytes.Buffer) (int, error) {
@@ -110,11 +117,33 @@ func (f *rsfWriter) writeIndexArray(v reflect.Type, t *tag, buf *bytes.Buffer) (
 	}
 	totalSz += sz
 
-	// For struct arrays, write additional info about the struct
+	// For struct arrays, we may need to write additional info about the struct
 	el := v.Elem()
+	var subfields int
+	subfieldsBuf := &bytes.Buffer{}
 	if el.Kind() == reflect.Struct {
-		sz, err = f.writeIndexStruct(el, t, buf)
-		totalSz += sz
+		// Write the subfields into a buffer and record the number of subfields found.
+		_, subfields, err = f.writeIndexStruct(el, t, subfieldsBuf)
+		if err != nil {
+			return 0, err
+		}
+	}
+
+	// Record the number of subfields in the array
+	sz, err = f.WriteSizeField(0, subfields, buf)
+	if err != nil {
+		return 0, err
+	}
+	totalSz += sz
+
+	// For if subfields were found, copy the subfield buffer.
+	if subfields > 0 {
+		var szCopy int64
+		szCopy, err = io.Copy(buf, subfieldsBuf)
+		if err != nil {
+			return 0, err
+		}
+		totalSz += int(szCopy)
 	}
 
 	return totalSz, err
@@ -122,7 +151,13 @@ func (f *rsfWriter) writeIndexArray(v reflect.Type, t *tag, buf *bytes.Buffer) (
 
 func (f *rsfWriter) writeIndexString(t *tag, buf *bytes.Buffer) (int, error) {
 	if t.fixed > 0 {
-		return f.writeIndexFixed(t, buf)
+		sz, err := f.writeIndexFixed(t, FieldTypeFixedStr, buf)
+		if err != nil {
+			return 0, err
+		}
+
+		sizeSz, err := f.WriteSizeField(0, t.fixed, buf)
+		return sz + sizeSz, err
 	}
 
 	var totalSz int
@@ -132,7 +167,7 @@ func (f *rsfWriter) writeIndexString(t *tag, buf *bytes.Buffer) (int, error) {
 	}
 	totalSz += sz
 
-	sz, err = f.WriteSizeField(0, FieldTypeVariable, buf)
+	sz, err = f.WriteSizeField(0, FieldTypeVarStr, buf)
 	if err != nil {
 		return 0, err
 	}
@@ -141,7 +176,7 @@ func (f *rsfWriter) writeIndexString(t *tag, buf *bytes.Buffer) (int, error) {
 	return totalSz, err
 }
 
-func (f *rsfWriter) writeIndexFixed(t *tag, buf *bytes.Buffer) (int, error) {
+func (f *rsfWriter) writeIndexFixed(t *tag, fieldType int, buf *bytes.Buffer) (int, error) {
 	var totalSz int
 	sz, err := f.WriteStringField(0, t.name, buf)
 	if err != nil {
@@ -149,7 +184,7 @@ func (f *rsfWriter) writeIndexFixed(t *tag, buf *bytes.Buffer) (int, error) {
 	}
 	totalSz += sz
 
-	sz, err = f.WriteSizeField(0, FieldTypeFixed, buf)
+	sz, err = f.WriteSizeField(0, fieldType, buf)
 	if err != nil {
 		return 0, err
 	}
