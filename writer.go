@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"math"
 )
 
 type rsfWriter struct {
@@ -20,6 +21,30 @@ func (f *rsfWriter) WriteSizeField(pos int, val int, r io.Writer) (int, error) {
 	// Write size
 	bs := make([]byte, sizeFieldLen)
 	binary.LittleEndian.PutUint32(bs, uint32(val))
+	sz, err := r.Write(bs)
+	if err != nil {
+		return 0, err
+	}
+
+	return pos + sz, nil
+}
+
+func (f *rsfWriter) WriteInt64Field(pos int, val int64, r io.Writer) (int, error) {
+	// Write int
+	bs := make([]byte, binary.MaxVarintLen64)
+	binary.PutVarint(bs, val)
+	sz, err := r.Write(bs)
+	if err != nil {
+		return 0, err
+	}
+
+	return pos + sz, nil
+}
+
+func (f *rsfWriter) WriteFloatField(pos int, val float64, r io.Writer) (int, error) {
+	// Write float
+	bs := make([]byte, size64)
+	binary.LittleEndian.PutUint64(bs, math.Float64bits(val))
 	sz, err := r.Write(bs)
 	if err != nil {
 		return 0, err

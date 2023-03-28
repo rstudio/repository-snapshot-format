@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"math"
 )
 
 type rsfReader struct {
@@ -48,6 +49,32 @@ func (f *rsfReader) ReadSizeField(r io.Reader) (int, error) {
 	f.pos += i
 	sz := binary.LittleEndian.Uint32(bs)
 	return int(sz), nil
+}
+
+func (f *rsfReader) ReadInt64Field(r io.Reader) (int64, error) {
+	bs := make([]byte, binary.MaxVarintLen64)
+	i, err := io.ReadFull(r, bs)
+	if err != nil {
+		return 0, err
+	} else if i != binary.MaxVarintLen64 {
+		return 0, fmt.Errorf("unexpected read size %d; expected %d", i, sizeFieldLen)
+	}
+	fmt.Printf("bytes: %#v\n", bs)
+	f.pos += i
+	intVal, _ := binary.Varint(bs)
+	return intVal, nil
+}
+
+func (f *rsfReader) ReadFloatField(r io.Reader) (float64, error) {
+	bs := make([]byte, size64)
+	i, err := io.ReadFull(r, bs)
+	if err != nil {
+		return 0, err
+	} else if i != size64 {
+		return 0, fmt.Errorf("unexpected read size %d; expected %d", i, sizeFieldLen)
+	}
+	f.pos += i
+	return math.Float64frombits(binary.LittleEndian.Uint64(bs)), nil
 }
 
 func (f *rsfReader) ReadFixedStringField(sz int, r io.Reader) (string, error) {

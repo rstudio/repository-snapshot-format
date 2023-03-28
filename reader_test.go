@@ -43,13 +43,17 @@ func (s *ReaderSuite) getData() *bytes.Buffer {
 	}
 
 	a := struct {
-		Skip    string `rsf:"-"`
-		Company string `rsf:"company"`
-		Ready   bool   `rsf:"ready"`
-		List    []snap `rsf:"list,index:date"`
+		Skip    string  `rsf:"-"`
+		Company string  `rsf:"company"`
+		Ready   bool    `rsf:"ready"`
+		List    []snap  `rsf:"list,index:date"`
+		Age     int     `rsf:"age"`
+		Rating  float64 `rsf:"rating"`
 	}{
 		Company: "posit",
 		Ready:   true,
+		Age:     55,
+		Rating:  92.689,
 		List: []snap{
 			{
 				Date:     "2020-10-01",
@@ -82,48 +86,48 @@ func (s *ReaderSuite) TestRead() {
 	// Object index size
 	indexSz, err := r.ReadSizeField(buf)
 	s.Assert().Nil(err)
-	s.Assert().Equal(72, indexSz)
+	s.Assert().Equal(97, indexSz)
 	// Position increased by 4 (size field is 4 bytes)
 	s.Assert().Equal(4, r.Pos())
 
-	// TODO don't skip header bytes
+	// Skip reading object header bytes
 	err = r.Discard(indexSz-4, buf)
 	s.Assert().Nil(err)
 
-	// Record should be 110 bytes in length
+	// Record should be 132 bytes in length
 	recordSz, err := r.ReadSizeField(buf)
 	s.Assert().Nil(err)
-	s.Assert().Equal(114, recordSz)
+	s.Assert().Equal(132, recordSz)
 	// Position increased by 4 (size field is 4 bytes)
-	s.Assert().Equal(76, r.Pos())
+	s.Assert().Equal(101, r.Pos())
 
 	// Company
 	company, err := r.ReadStringField(buf)
 	s.Assert().Nil(err)
 	s.Assert().Equal("posit", company)
 	// Position increased by 9. Size field is 4 bytes + data is 5 bytes.
-	s.Assert().Equal(85, r.Pos())
+	s.Assert().Equal(110, r.Pos())
 
 	// Read
 	ready, err := r.ReadBoolField(buf)
 	s.Assert().Nil(err)
 	s.Assert().True(ready)
 	// Position increased by 1
-	s.Assert().Equal(86, r.Pos())
+	s.Assert().Equal(111, r.Pos())
 
 	// Array should be 100 bytes in size
 	arraySz, err := r.ReadSizeField(buf)
 	s.Assert().Nil(err)
 	s.Assert().Equal(100, arraySz)
 	// Position increased by 4
-	s.Assert().Equal(90, r.Pos())
+	s.Assert().Equal(115, r.Pos())
 
 	// Array should be 3 elements in length
 	arrayLen, err := r.ReadSizeField(buf)
 	s.Assert().Nil(err)
 	s.Assert().Equal(3, arrayLen)
 	// Position increased by 4
-	s.Assert().Equal(94, r.Pos())
+	s.Assert().Equal(119, r.Pos())
 
 	// Array index. Read all three index entries
 	// Entry 1
@@ -152,14 +156,14 @@ func (s *ReaderSuite) TestRead() {
 	// Position increased by 3(10+4) since each index entry uses
 	// a 10-byte fixed-length string and a 4-byte size field.
 	// 3*14=42
-	// 94+42=136
-	s.Assert().Equal(136, r.Pos())
+	// 119+42=161
+	s.Assert().Equal(161, r.Pos())
 
 	// Discard 28 bytes (14+14) to move to the last array element.
 	err = r.Discard(28, buf)
 	s.Assert().Nil(err)
-	// Position increased by 28 to 136+28=136.
-	s.Assert().Equal(164, r.Pos())
+	// Position increased by 28 to 161+28=189.
+	s.Assert().Equal(189, r.Pos())
 
 	// Read last array element's "Name" field.
 	name, err := r.ReadStringField(buf)
@@ -167,15 +171,25 @@ func (s *ReaderSuite) TestRead() {
 	s.Assert().Equal("this is from 2022", name)
 	// Position increased by 4+17. String size uses 4 bytes and
 	// string value uses 17 bytes.
-	// 164+21=185
-	s.Assert().Equal(185, r.Pos())
+	// 189+21=210
+	s.Assert().Equal(210, r.Pos())
 
 	// Read last array element's "Verified" field.
 	verified, err := r.ReadBoolField(buf)
 	s.Assert().Nil(err)
 	s.Assert().True(verified)
 	// Position increased by 1.
-	s.Assert().Equal(186, r.Pos())
+	s.Assert().Equal(211, r.Pos())
+
+	// Read age field
+	age, err := r.ReadInt64Field(buf)
+	s.Assert().Nil(err)
+	s.Assert().Equal(int64(55), age)
+
+	// Read rating field
+	rating, err := r.ReadFloatField(buf)
+	s.Assert().Nil(err)
+	s.Assert().Equal(92.689, rating)
 
 	// Verify at EOF.
 	_, err = r.ReadSizeField(buf)
@@ -189,10 +203,10 @@ func (s *ReaderSuite) TestRead() {
 	_, err = io.Copy(tmp, buf)
 
 	// Seek back to the last array element.
-	err = r.Seek(164, tmp)
+	err = r.Seek(189, tmp)
 	s.Assert().Nil(err)
-	// Position set to 164
-	s.Assert().Equal(164, r.Pos())
+	// Position set to 189
+	s.Assert().Equal(189, r.Pos())
 
 	// Read last array element's "Name" field again from the temp file.
 	name, err = r.ReadStringField(tmp)
@@ -200,7 +214,6 @@ func (s *ReaderSuite) TestRead() {
 	s.Assert().Equal("this is from 2022", name)
 	// Position increased by 4+17. String size uses 4 bytes and
 	// string value uses 17 bytes.
-	// 164+21=185
-	s.Assert().Equal(185, r.Pos())
-
+	// 189+21=210
+	s.Assert().Equal(210, r.Pos())
 }

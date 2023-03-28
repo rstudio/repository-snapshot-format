@@ -82,6 +82,10 @@ func (f *rsfWriter) writeObject(v reflect.Value, t *tag, buf *bytes.Buffer) (int
 		return f.writeString(v.String(), t, buf)
 	case reflect.Bool:
 		return f.WriteBoolField(0, v.Bool(), buf)
+	case reflect.Int, reflect.Int64, reflect.Int32, reflect.Int16, reflect.Int8:
+		return f.WriteInt64Field(0, v.Int(), buf)
+	case reflect.Float32, reflect.Float64:
+		return f.WriteFloatField(0, v.Float(), buf)
 	default:
 		return 0, fmt.Errorf("unknown field type %#v: %#v", v.Type().Kind(), v)
 	}

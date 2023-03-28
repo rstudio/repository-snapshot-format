@@ -9,15 +9,43 @@ import (
 
 /*
 
-When writing a struct at position zero, we first write an index that describes the fields
-in the object.
+When writing a struct at position zero, we first write an index that
+describes the struct fields in the object.
 
-sz       (header size)
-company  FieldTypeVariable
-ready    FieldTypeFixed
-list     FieldTypeArray
-name     FieldTypeVariable
-verified FieldTypeFixed
+Format:
+
+  [header size]
+  [field 1]
+  [field 1 name size]
+  [field 1 name]
+  [field 1 type]
+  [field n name size]
+  [field n name]
+  [field n type]
+
+Example:
+
+  0x48, 0x0, 0x0, 0x0,                            // 72 bytes full header size
+
+  0x7, 0x0, 0x0, 0x0,                             // 7 bytes
+  0x63, 0x6f, 0x6d, 0x70, 0x61, 0x6e, 0x79,       // "company"
+  0x1, 0x0, 0x0, 0x0,                             // FieldTypeVariable
+
+  0x5, 0x0, 0x0, 0x0,                             // 5 bytes
+  0x72, 0x65, 0x61, 0x64, 0x79,                   // "ready"
+  0x2, 0x0, 0x0, 0x0,                             // FieldTypeFixed
+
+  0x4, 0x0, 0x0, 0x0,                             // 4 bytes
+  0x6c, 0x69, 0x73, 0x74,                         // "list"
+  0x3, 0x0, 0x0, 0x0,                             // FieldTypeArray
+
+  0x4, 0x0, 0x0, 0x0,                             // 4 bytes
+  0x6e, 0x61, 0x6d, 0x65,                         // "name"
+  0x1, 0x0, 0x0, 0x0,                             // FieldTypeVariable
+
+  0x8, 0x0, 0x0, 0x0,                             // 8 bytes
+  0x76, 0x65, 0x72, 0x69, 0x66, 0x69, 0x65, 0x64, // "verified"
+  0x2, 0x0, 0x0, 0x0,                             // FieldTypeFixed
 
 */
 
@@ -36,7 +64,11 @@ func (f *rsfWriter) writeIndexObject(v reflect.Type, t *tag, buf *bytes.Buffer) 
 	case reflect.String:
 		return f.writeIndexString(t, buf)
 	case reflect.Bool:
-		return f.writeIndexBool(t, buf)
+		return f.writeIndexFixed(t, buf)
+	case reflect.Int, reflect.Int64, reflect.Int32, reflect.Int16, reflect.Int8:
+		return f.writeIndexFixed(t, buf)
+	case reflect.Float32, reflect.Float64:
+		return f.writeIndexFixed(t, buf)
 	default:
 		return 0, fmt.Errorf("unknown field type %#v: %#v", v.Kind(), v)
 	}
@@ -89,6 +121,10 @@ func (f *rsfWriter) writeIndexArray(v reflect.Type, t *tag, buf *bytes.Buffer) (
 }
 
 func (f *rsfWriter) writeIndexString(t *tag, buf *bytes.Buffer) (int, error) {
+	if t.fixed > 0 {
+		return f.writeIndexFixed(t, buf)
+	}
+
 	var totalSz int
 	sz, err := f.WriteStringField(0, t.name, buf)
 	if err != nil {
@@ -96,12 +132,7 @@ func (f *rsfWriter) writeIndexString(t *tag, buf *bytes.Buffer) (int, error) {
 	}
 	totalSz += sz
 
-	fType := FieldTypeVariable
-	if t.fixed > 0 {
-		fType = FieldTypeFixed
-	}
-
-	sz, err = f.WriteSizeField(0, fType, buf)
+	sz, err = f.WriteSizeField(0, FieldTypeVariable, buf)
 	if err != nil {
 		return 0, err
 	}
@@ -110,7 +141,7 @@ func (f *rsfWriter) writeIndexString(t *tag, buf *bytes.Buffer) (int, error) {
 	return totalSz, err
 }
 
-func (f *rsfWriter) writeIndexBool(t *tag, buf *bytes.Buffer) (int, error) {
+func (f *rsfWriter) writeIndexFixed(t *tag, buf *bytes.Buffer) (int, error) {
 	var totalSz int
 	sz, err := f.WriteStringField(0, t.name, buf)
 	if err != nil {
