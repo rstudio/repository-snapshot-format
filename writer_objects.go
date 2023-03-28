@@ -17,7 +17,7 @@ func (f *rsfWriter) WriteObject(v any) (int, error) {
 	var totalSz int
 	var err error
 	var sz int
-	if f.pos == 0 {
+	if f.pos == 0 && reflect.TypeOf(v).Kind() == reflect.Struct {
 		indexSz, err = f.writeIndexObject(reflect.TypeOf(v), &tag{}, indexBuf)
 		if err != nil {
 			return 0, err

@@ -62,7 +62,7 @@ func (s *WriterSuite) TestDiscreteWrites() {
 	s.Assert().Equal([]byte{0x1, 0x0}, buf.Bytes())
 }
 
-func (s *WriterSuite) TestWriteObjectString() {
+func (s *WriterSuite) TestWriteString() {
 	buf := &bytes.Buffer{}
 	w := NewWriter(buf)
 
@@ -89,7 +89,7 @@ func (s *WriterSuite) TestWriteObjectString() {
 	}, buf.Bytes())
 }
 
-func (s *WriterSuite) TestWriteObjectArray() {
+func (s *WriterSuite) TestWriteArray() {
 	buf := &bytes.Buffer{}
 	w := NewWriter(buf)
 
@@ -486,5 +486,121 @@ func (s *WriterSuite) TestWriteObjectNoArrayIndex() {
 		0x74, 0x68, 0x69, 0x73, 0x20, 0x69, 0x73, 0x20, 0x66, 0x72, 0x6f, 0x6d, 0x20, 0x32, 0x30, 0x32, 0x32,
 		// verified:true
 		0x1,
+	}, buf.Bytes())
+}
+
+func (s *WriterSuite) TestWriteObjectArray() {
+	buf := &bytes.Buffer{}
+	w := NewWriter(buf)
+
+	a := []string{
+		"one",
+		"two",
+		"three",
+	}
+
+	sz, err := w.WriteObject(a)
+	s.Assert().Nil(err)
+	// Object should use 35 bytes
+	s.Assert().Equal(35, sz)
+	s.Assert().Len(buf.Bytes(), 35)
+	// Verify bytes.
+	s.Assert().Equal([]byte{
+		// Full object size of 35
+		0x23, 0x0, 0x0, 0x0,
+		//
+		// Full array size of 31
+		0x1f, 0x0, 0x0, 0x0,
+		//
+		// Array length of three
+		0x3, 0x0, 0x0, 0x0,
+		//
+		// "one"
+		0x3, 0x0, 0x0, 0x0,
+		0x6f, 0x6e, 0x65,
+		//
+		// "two"
+		0x3, 0x0, 0x0, 0x0,
+		0x74, 0x77, 0x6f,
+		//
+		// "three"
+		0x5, 0x0, 0x0, 0x0,
+		0x74, 0x68, 0x72, 0x65, 0x65,
+	}, buf.Bytes())
+}
+
+func (s *WriterSuite) TestWriteObjectArrayOfStructs() {
+	buf := &bytes.Buffer{}
+	w := NewWriter(buf)
+
+	type my struct {
+		Name      string
+		Certified bool
+	}
+	a := []my{
+		{Name: "one", Certified: true},
+		{Name: "two"},
+		{Name: "three", Certified: true},
+	}
+
+	sz, err := w.WriteObject(a)
+	s.Assert().Nil(err)
+	// Object should use 35 bytes
+	s.Assert().Equal(38, sz)
+	s.Assert().Len(buf.Bytes(), 38)
+	// Verify bytes.
+	s.Assert().Equal([]byte{
+		// Full object size of 38
+		0x26, 0x0, 0x0, 0x0,
+		//
+		// Full array size of 34
+		0x22, 0x0, 0x0, 0x0,
+		//
+		// Array length of three
+		0x3, 0x0, 0x0, 0x0,
+		//
+		// "one"
+		0x3, 0x0, 0x0, 0x0,
+		0x6f, 0x6e, 0x65,
+		//
+		// true
+		0x1,
+		//
+		// "two"
+		0x3, 0x0, 0x0, 0x0,
+		0x74, 0x77, 0x6f,
+		//
+		// false
+		0x0,
+		//
+		// "three"
+		0x5, 0x0, 0x0, 0x0,
+		0x74, 0x68, 0x72, 0x65, 0x65,
+		//
+		// true
+		0x1,
+	}, buf.Bytes())
+}
+
+func (s *WriterSuite) TestWriteObjectString() {
+	buf := &bytes.Buffer{}
+	w := NewWriter(buf)
+
+	a := "this is a test"
+	sz, err := w.WriteObject(a)
+	s.Assert().Nil(err)
+	// Object should use 22 bytes
+	s.Assert().Equal(22, sz)
+	s.Assert().Len(buf.Bytes(), 22)
+	// Verify bytes.
+	s.Assert().Equal([]byte{
+		// Full object size of 22
+		0x16, 0x0, 0x0, 0x0,
+		//
+		// String size of 14
+		0xe, 0x0, 0x0, 0x0,
+		//
+		// "this is a test"
+		0x74, 0x68, 0x69, 0x73, 0x20, 0x69, 0x73, 0x20, 0x61, 0x20, 0x74, 0x65, 0x73, 0x74,
 	}, buf.Bytes())
 }

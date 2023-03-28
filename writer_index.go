@@ -9,7 +9,7 @@ import (
 
 /*
 
-When writing an object at position zero, we first write an index that describes the fields
+When writing a struct at position zero, we first write an index that describes the fields
 in the object.
 
 sz       (header size)
