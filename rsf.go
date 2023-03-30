@@ -24,9 +24,15 @@ type Writer interface {
 
 	// WriteBoolField writes a 1-byte (0 or 1) boolean value.
 	WriteBoolField(pos int, val bool, r io.Writer) (int, error)
+
+	// WriteInt64Field write a 10-byte signed int64 value.
+	WriteInt64Field(pos int, val int64, r io.Writer) (int, error)
+
+	// WriteFloatField write an 8-byte float64 value
+	WriteFloatField(pos int, val float64, r io.Writer) (int, error)
 }
 
-// Reader - The Reader interface provides Read* methods analagous to the Write*
+// Reader - The Reader interface provides Read* methods analogous to the Write*
 // methods in the Writer interface. No `ReadObject` method is provided since
 // reading is likely to be customized per use case.
 type Reader interface {
@@ -34,6 +40,19 @@ type Reader interface {
 	ReadFixedStringField(sz int, r io.Reader) (string, error)
 	ReadStringField(r io.Reader) (string, error)
 	ReadBoolField(r io.Reader) (bool, error)
+	ReadIntField(r io.Reader) (int64, error)
+	ReadFloatField(r io.Reader) (float64, error)
+
+	// AdvanceTo advances the reader to the field indicated by `fieldNames`.
+	AdvanceTo(buf *bufio.Reader, fieldNames ...string) error
+
+	// AdvanceToNextElement advances the reader to the end of the current
+	// struct.
+	AdvanceToNextElement(buf *bufio.Reader) error
+
+	// ReadIndex reads the object index at the top of an RSF file
+	ReadIndex(r io.Reader) (Index, error)
+	SetIndex(i Index)
 
 	// Seek is used to seek a file position.
 	Seek(pos int, r io.Seeker) error
@@ -48,6 +67,8 @@ type Reader interface {
 // General constants
 const (
 	sizeFieldLen = 4
+	sizeFloat64  = 8
+	sizeInt64    = 10
 )
 
 // Constants used by `rsf` struct tags

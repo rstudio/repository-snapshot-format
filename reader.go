@@ -6,10 +6,18 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"math"
 )
 
 type rsfReader struct {
 	pos int
+
+	// When reading an RSF file based on a struct, the first entry
+	// is an index. See `ReadIndex`.
+	index Index
+
+	// Saves the current position for advancing the reader.
+	at []string
 }
 
 func NewReader() Reader {
@@ -48,6 +56,31 @@ func (f *rsfReader) ReadSizeField(r io.Reader) (int, error) {
 	f.pos += i
 	sz := binary.LittleEndian.Uint32(bs)
 	return int(sz), nil
+}
+
+func (f *rsfReader) ReadIntField(r io.Reader) (int64, error) {
+	bs := make([]byte, sizeInt64)
+	i, err := io.ReadFull(r, bs)
+	if err != nil {
+		return 0, err
+	} else if i != sizeInt64 {
+		return 0, fmt.Errorf("unexpected read size %d; expected %d", i, sizeInt64)
+	}
+	f.pos += i
+	intVal, _ := binary.Varint(bs)
+	return intVal, nil
+}
+
+func (f *rsfReader) ReadFloatField(r io.Reader) (float64, error) {
+	bs := make([]byte, sizeFloat64)
+	i, err := io.ReadFull(r, bs)
+	if err != nil {
+		return 0, err
+	} else if i != sizeFloat64 {
+		return 0, fmt.Errorf("unexpected read size %d; expected %d", i, sizeFloat64)
+	}
+	f.pos += i
+	return math.Float64frombits(binary.LittleEndian.Uint64(bs)), nil
 }
 
 func (f *rsfReader) ReadFixedStringField(sz int, r io.Reader) (string, error) {
