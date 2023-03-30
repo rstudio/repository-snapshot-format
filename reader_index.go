@@ -3,13 +3,14 @@ package rsf
 
 import (
 	"bufio"
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
 )
 
 type Index []IndexEntry
+
+const top = ""
 
 type IndexEntry struct {
 	FieldName string
@@ -22,10 +23,10 @@ func (f *rsfReader) SetIndex(newIndex Index) {
 	f.index = newIndex
 }
 
-func (f *rsfReader) ReadIndex(r io.Reader) error {
+func (f *rsfReader) ReadIndex(r io.Reader) (Index, error) {
 	var err error
 	f.index, err = f.readIndexEntries(r, 0, 0)
-	return err
+	return f.index, err
 }
 
 func (f *rsfReader) readIndexEntries(r io.Reader, sz, limit int) (Index, error) {
@@ -135,9 +136,9 @@ func (f *rsfReader) advance(advField IndexEntry, buf *bufio.Reader) error {
 	case FieldTypeBool:
 		err = f.Discard(1, buf)
 	case FieldTypeInt64:
-		err = f.Discard(binary.MaxVarintLen64, buf)
+		err = f.Discard(sizeInt64, buf)
 	case FieldTypeFloat:
-		err = f.Discard(size64, buf)
+		err = f.Discard(sizeFloat64, buf)
 	default:
 		return fmt.Errorf("unexpected index field type %d", advField.FieldType)
 	}
@@ -152,7 +153,7 @@ func (f *rsfReader) AdvanceTo(buf *bufio.Reader, fieldNames ...string) error {
 	if len(fieldNames) < len(at) {
 		at = f.at[:len(fieldNames)]
 	} else if len(at) < len(fieldNames) {
-		at = append(at, "")
+		at = append(at, top)
 	}
 
 	from, fromPos, err := entrySet(f.index, at...)
@@ -160,19 +161,9 @@ func (f *rsfReader) AdvanceTo(buf *bufio.Reader, fieldNames ...string) error {
 		return err
 	}
 
-	to, toPos, err := entrySet(f.index, fieldNames...)
+	_, toPos, err := entrySet(f.index, fieldNames...)
 	if err != nil {
 		return err
-	}
-
-	// If we're already at the correct position, return early.
-	checkPos := fromPos
-	if checkPos < 0 {
-		checkPos = 0
-	}
-	if from[checkPos].FieldName == to[toPos].FieldName {
-		f.at = fieldNames
-		return nil
 	}
 
 	for i := fromPos + 1; i < toPos; i++ {
@@ -202,7 +193,7 @@ func (f *rsfReader) AdvanceToNextElement(buf *bufio.Reader) error {
 	}
 
 	at := f.at[:len(f.at)-1]
-	at = append(at, "")
+	at = append(at, top)
 	f.at = at
 
 	return nil
@@ -213,7 +204,7 @@ func entrySet(index Index, fieldNames ...string) (Index, int, error) {
 	var atPos int
 
 	if fieldNames == nil {
-		fieldNames = []string{""}
+		fieldNames = []string{top}
 	}
 
 	// Look up fields in path
@@ -222,10 +213,10 @@ func entrySet(index Index, fieldNames ...string) (Index, int, error) {
 	for _, field := range fieldNames {
 		var found bool
 		for pos, entry := range next {
-			if entry.FieldName == field || field == "" {
+			if entry.FieldName == field || field == top {
 				found = true
 				at = next
-				if field == "" {
+				if field == top {
 					atPos = -1
 				} else {
 					atPos = pos

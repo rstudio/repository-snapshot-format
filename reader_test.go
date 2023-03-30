@@ -84,7 +84,7 @@ func (s *ReaderSuite) TestRead() {
 	r := NewReader()
 
 	// Read the index
-	err := r.ReadIndex(buf)
+	index, err := r.ReadIndex(buf)
 	s.Assert().Nil(err)
 	s.Assert().Equal(101, r.Pos())
 
@@ -121,6 +121,16 @@ func (s *ReaderSuite) TestRead() {
 			FieldType: FieldTypeFloat,
 		},
 	}, r.(*rsfReader).index)
+	s.Assert().Equal(index, r.(*rsfReader).index)
+
+	// Test updating index
+	newIndex := Index{}
+	r.SetIndex(newIndex)
+	s.Assert().Equal(newIndex, r.(*rsfReader).index)
+
+	// Set back to original index
+	r.SetIndex(index)
+	s.Assert().Equal(index, r.(*rsfReader).index)
 
 	// Record should be 132 bytes in length
 	recordSz, err := r.ReadSizeField(buf)
@@ -222,7 +232,7 @@ func (s *ReaderSuite) TestRead() {
 	// Read age field
 	err = r.AdvanceTo(buf, "age")
 	s.Assert().Nil(err)
-	age, err := r.ReadInt64Field(buf)
+	age, err := r.ReadIntField(buf)
 	s.Assert().Nil(err)
 	s.Assert().Equal(int64(55), age)
 

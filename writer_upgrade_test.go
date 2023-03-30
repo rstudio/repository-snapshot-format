@@ -160,7 +160,7 @@ func (s *WriterUpgradeSuite) validateRead(b *bytes.Buffer) {
 
 	// Read index
 	r := NewReader()
-	err := r.ReadIndex(b)
+	_, err := r.ReadIndex(b)
 	s.Assert().Nil(err)
 
 	// Read object size.
@@ -284,7 +284,7 @@ func (s *WriterUpgradeSuite) validateRead(b *bytes.Buffer) {
 	// Advance to age
 	err = r.AdvanceTo(buf, "age")
 	s.Assert().Nil(err)
-	age, err := r.ReadInt64Field(buf)
+	age, err := r.ReadIntField(buf)
 	s.Assert().Nil(err)
 	s.Assert().Equal(int64(55), age)
 

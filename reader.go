@@ -58,13 +58,13 @@ func (f *rsfReader) ReadSizeField(r io.Reader) (int, error) {
 	return int(sz), nil
 }
 
-func (f *rsfReader) ReadInt64Field(r io.Reader) (int64, error) {
-	bs := make([]byte, binary.MaxVarintLen64)
+func (f *rsfReader) ReadIntField(r io.Reader) (int64, error) {
+	bs := make([]byte, sizeInt64)
 	i, err := io.ReadFull(r, bs)
 	if err != nil {
 		return 0, err
-	} else if i != binary.MaxVarintLen64 {
-		return 0, fmt.Errorf("unexpected read size %d; expected %d", i, sizeFieldLen)
+	} else if i != sizeInt64 {
+		return 0, fmt.Errorf("unexpected read size %d; expected %d", i, sizeInt64)
 	}
 	f.pos += i
 	intVal, _ := binary.Varint(bs)
@@ -72,12 +72,12 @@ func (f *rsfReader) ReadInt64Field(r io.Reader) (int64, error) {
 }
 
 func (f *rsfReader) ReadFloatField(r io.Reader) (float64, error) {
-	bs := make([]byte, size64)
+	bs := make([]byte, sizeFloat64)
 	i, err := io.ReadFull(r, bs)
 	if err != nil {
 		return 0, err
-	} else if i != size64 {
-		return 0, fmt.Errorf("unexpected read size %d; expected %d", i, sizeFieldLen)
+	} else if i != sizeFloat64 {
+		return 0, fmt.Errorf("unexpected read size %d; expected %d", i, sizeFloat64)
 	}
 	f.pos += i
 	return math.Float64frombits(binary.LittleEndian.Uint64(bs)), nil

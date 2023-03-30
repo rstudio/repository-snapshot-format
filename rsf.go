@@ -40,7 +40,7 @@ type Reader interface {
 	ReadFixedStringField(sz int, r io.Reader) (string, error)
 	ReadStringField(r io.Reader) (string, error)
 	ReadBoolField(r io.Reader) (bool, error)
-	ReadInt64Field(r io.Reader) (int64, error)
+	ReadIntField(r io.Reader) (int64, error)
 	ReadFloatField(r io.Reader) (float64, error)
 
 	// AdvanceTo advances the reader to the field indicated by `fieldNames`.
@@ -51,7 +51,7 @@ type Reader interface {
 	AdvanceToNextElement(buf *bufio.Reader) error
 
 	// ReadIndex reads the object index at the top of an RSF file
-	ReadIndex(r io.Reader) error
+	ReadIndex(r io.Reader) (Index, error)
 	SetIndex(i Index)
 
 	// Seek is used to seek a file position.
@@ -67,7 +67,8 @@ type Reader interface {
 // General constants
 const (
 	sizeFieldLen = 4
-	size64       = 8
+	sizeFloat64  = 8
+	sizeInt64    = 10
 )
 
 // Constants used by `rsf` struct tags

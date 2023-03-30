@@ -31,7 +31,7 @@ func (f *rsfWriter) WriteSizeField(pos int, val int, r io.Writer) (int, error) {
 
 func (f *rsfWriter) WriteInt64Field(pos int, val int64, r io.Writer) (int, error) {
 	// Write int
-	bs := make([]byte, binary.MaxVarintLen64)
+	bs := make([]byte, sizeInt64)
 	binary.PutVarint(bs, val)
 	sz, err := r.Write(bs)
 	if err != nil {
@@ -43,7 +43,7 @@ func (f *rsfWriter) WriteInt64Field(pos int, val int64, r io.Writer) (int, error
 
 func (f *rsfWriter) WriteFloatField(pos int, val float64, r io.Writer) (int, error) {
 	// Write float
-	bs := make([]byte, size64)
+	bs := make([]byte, sizeFloat64)
 	binary.LittleEndian.PutUint64(bs, math.Float64bits(val))
 	sz, err := r.Write(bs)
 	if err != nil {

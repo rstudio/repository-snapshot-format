@@ -23,7 +23,7 @@ func (s *ReaderMigrationSuite) TestAdvanceFields() {
 	r := NewReader()
 
 	// Read the index
-	err := r.ReadIndex(buf)
+	_, err := r.ReadIndex(buf)
 	s.Assert().Nil(err)
 	s.Assert().Equal(101, r.Pos())
 
@@ -161,7 +161,7 @@ func (s *ReaderMigrationSuite) TestAdvanceArray() {
 	r := NewReader()
 
 	// Read the index
-	err := r.ReadIndex(buf)
+	_, err := r.ReadIndex(buf)
 	s.Assert().Nil(err)
 	s.Assert().Equal(101, r.Pos())
 
@@ -185,7 +185,7 @@ func (s *ReaderMigrationSuite) TestAdvanceArray() {
 	// to "age". This tests skipping both a regular field and an entire array.
 	err = r.AdvanceTo(buf, "age")
 	s.Assert().Nil(err)
-	age, err := r.ReadInt64Field(buf)
+	age, err := r.ReadIntField(buf)
 	s.Assert().Nil(err)
 	s.Assert().Equal(int64(55), age)
 	s.Assert().Equal(225, r.Pos())
@@ -226,7 +226,7 @@ func (s *ReaderMigrationSuite) TestAdvanceErrors() {
 	r := NewReader()
 
 	// Read the index
-	err := r.ReadIndex(buf)
+	_, err := r.ReadIndex(buf)
 	s.Assert().Nil(err)
 	s.Assert().Equal(101, r.Pos())
 
