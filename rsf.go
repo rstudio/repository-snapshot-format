@@ -55,10 +55,10 @@ type Reader interface {
 	SetIndex(i Index)
 
 	// Seek is used to seek a file position.
-	Seek(pos int, r io.Seeker) error
+	Seek(pos int, r io.Seeker, fieldNames ...string) error
 
 	// Discard discards `sz` bytes.
-	Discard(sz int, r *bufio.Reader) error
+	Discard(sz int, r *bufio.Reader, fieldNames ...string) error
 
 	// Pos returns the current position in the read buffer.
 	Pos() int
