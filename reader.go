@@ -28,13 +28,14 @@ func (f *rsfReader) Pos() int {
 	return f.pos
 }
 
-func (f *rsfReader) Seek(pos int, r io.Seeker) error {
+func (f *rsfReader) Seek(pos int, r io.Seeker, fieldNames ...string) error {
 	i, err := r.Seek(int64(pos), 0)
 	f.pos = int(i)
+	f.at = fieldNames
 	return err
 }
 
-func (f *rsfReader) Discard(sz int, r *bufio.Reader) error {
+func (f *rsfReader) Discard(sz int, r *bufio.Reader, fieldNames ...string) error {
 	i, err := r.Discard(sz)
 	if err != nil {
 		return err
@@ -42,6 +43,9 @@ func (f *rsfReader) Discard(sz int, r *bufio.Reader) error {
 		return fmt.Errorf("unexpected discard size %d; expected %d", i, sz)
 	}
 	f.pos += i
+	if len(fieldNames) > 0 {
+		f.at = fieldNames
+	}
 	return nil
 }
 
