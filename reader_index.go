@@ -10,7 +10,7 @@ import (
 
 type Index []IndexEntry
 
-const top = ""
+const Top = ""
 
 type IndexEntry struct {
 	FieldName string
@@ -153,7 +153,7 @@ func (f *rsfReader) AdvanceTo(buf *bufio.Reader, fieldNames ...string) error {
 	if len(fieldNames) < len(at) {
 		at = f.at[:len(fieldNames)]
 	} else if len(at) < len(fieldNames) {
-		at = append(at, top)
+		at = append(at, Top)
 	}
 
 	from, fromPos, err := entrySet(f.index, at...)
@@ -179,7 +179,7 @@ func (f *rsfReader) AdvanceTo(buf *bufio.Reader, fieldNames ...string) error {
 
 }
 
-func (f *rsfReader) AdvanceToNextElement(buf *bufio.Reader) error {
+func (f *rsfReader) AdvanceToNextElement(buf *bufio.Reader, fieldNames ...string) error {
 	from, fromPos, err := entrySet(f.index, f.at...)
 	if err != nil {
 		return err
@@ -192,9 +192,13 @@ func (f *rsfReader) AdvanceToNextElement(buf *bufio.Reader) error {
 		}
 	}
 
-	at := f.at[:len(f.at)-1]
-	at = append(at, top)
-	f.at = at
+	if len(fieldNames) > 0 {
+		f.at = fieldNames
+	} else {
+		at := f.at[:len(f.at)-1]
+		at = append(at, Top)
+		f.at = at
+	}
 
 	return nil
 
@@ -204,7 +208,7 @@ func entrySet(index Index, fieldNames ...string) (Index, int, error) {
 	var atPos int
 
 	if fieldNames == nil {
-		fieldNames = []string{top}
+		fieldNames = []string{Top}
 	}
 
 	// Look up fields in path
@@ -213,10 +217,10 @@ func entrySet(index Index, fieldNames ...string) (Index, int, error) {
 	for _, field := range fieldNames {
 		var found bool
 		for pos, entry := range next {
-			if entry.FieldName == field || field == top {
+			if entry.FieldName == field || field == Top {
 				found = true
 				at = next
-				if field == top {
+				if field == Top {
 					atPos = -1
 				} else {
 					atPos = pos
