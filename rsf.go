@@ -48,7 +48,7 @@ type Reader interface {
 
 	// AdvanceToNextElement advances the reader to the end of the current
 	// struct.
-	AdvanceToNextElement(buf *bufio.Reader) error
+	AdvanceToNextElement(buf *bufio.Reader, fieldNames ...string) error
 
 	// ReadIndex reads the object index at the top of an RSF file
 	ReadIndex(r io.Reader) (Index, error)

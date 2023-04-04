@@ -179,7 +179,7 @@ func (f *rsfReader) AdvanceTo(buf *bufio.Reader, fieldNames ...string) error {
 
 }
 
-func (f *rsfReader) AdvanceToNextElement(buf *bufio.Reader) error {
+func (f *rsfReader) AdvanceToNextElement(buf *bufio.Reader, fieldNames ...string) error {
 	from, fromPos, err := entrySet(f.index, f.at...)
 	if err != nil {
 		return err
@@ -192,9 +192,13 @@ func (f *rsfReader) AdvanceToNextElement(buf *bufio.Reader) error {
 		}
 	}
 
-	at := f.at[:len(f.at)-1]
-	at = append(at, top)
-	f.at = at
+	if len(fieldNames) > 0 {
+		f.at = fieldNames
+	} else {
+		at := f.at[:len(f.at)-1]
+		at = append(at, top)
+		f.at = at
+	}
 
 	return nil
 
