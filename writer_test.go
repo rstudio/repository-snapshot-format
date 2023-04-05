@@ -223,10 +223,11 @@ func (s *WriterSuite) TestWriteObjectWithArrayIndex() {
 		// array will be indexed using the value of this field. Since the
 		// date is written in the index, there's no need to write it again
 		// when serializing each array element, so we include `skip` here.
-		Date     string `rsf:"date,skip,fixed:10"`
-		Name     string `rsf:"name"`
-		Verified bool   `rsf:"verified"`
-		Skip     string `rsf:"-"`
+		Date     string   `rsf:"date,skip,fixed:10"`
+		Name     string   `rsf:"name"`
+		Verified bool     `rsf:"verified"`
+		Skip     string   `rsf:"-"`
+		Aliases  []string `rsf:"aliases"`
 	}
 
 	a := struct {
@@ -245,6 +246,7 @@ func (s *WriterSuite) TestWriteObjectWithArrayIndex() {
 			{
 				Date:     "2020-10-01",
 				Name:     "From 2020",
+				Aliases:  []string{"from 2020", "before 2021"},
 				Verified: false,
 			},
 			{
@@ -255,6 +257,7 @@ func (s *WriterSuite) TestWriteObjectWithArrayIndex() {
 			{
 				Date:     "2022-12-15",
 				Name:     "this is from 2022",
+				Aliases:  []string{"from 2022"},
 				Verified: true,
 			},
 		},
@@ -262,15 +265,226 @@ func (s *WriterSuite) TestWriteObjectWithArrayIndex() {
 
 	sz, err := w.WriteObject(a)
 	s.Assert().Nil(err)
-	// Object should use 233 bytes.
-	s.Assert().Equal(233, sz)
-	s.Assert().Len(buf.Bytes(), 233)
+	// Object should use 317 bytes.
+	s.Assert().Equal(317, sz)
+	s.Assert().Len(buf.Bytes(), 317)
 	// Verify bytes.
 	s.Assert().Equal([]byte{
 		//
 		// Object index header
 		//
-		// Full size of index header is 97 bytes
+		// Full size of index header
+		0x78, 0x0, 0x0, 0x0,
+		//
+		// Fields Index
+		//
+		// "company" field is 7 bytes in length
+		0x7, 0x0, 0x0, 0x0,
+		// "company" field name
+		0x63, 0x6f, 0x6d, 0x70, 0x61, 0x6e, 0x79,
+		// "company" field type 1 indicates variable-length
+		0x1, 0x0, 0x0, 0x0,
+		//
+		// "ready" field is 5 bytes in length
+		0x5, 0x0, 0x0, 0x0,
+		// "ready" field name
+		0x72, 0x65, 0x61, 0x64, 0x79,
+		// "ready" field type 3 indicates boolean
+		0x3, 0x0, 0x0, 0x0,
+		//
+		// "list" field is 4 bytes in length
+		0x4, 0x0, 0x0, 0x0,
+		// "list field name
+		0x6c, 0x69, 0x73, 0x74,
+		// "list" field type 4 indicates array
+		0x4, 0x0, 0x0, 0x0,
+		// "list" field has 3 subfields
+		0x3, 0x0, 0x0, 0x0,
+		//
+		// "name" field is 4 bytes in length
+		0x4, 0x0, 0x0, 0x0,
+		// "name" field name
+		0x6e, 0x61, 0x6d, 0x65,
+		// "name" field type 1 indicates variable length
+		0x1, 0x0, 0x0, 0x0,
+		//
+		// "verified" field is 8 bytes in length
+		0x8, 0x0, 0x0, 0x0,
+		// "verified" field name
+		0x76, 0x65, 0x72, 0x69, 0x66, 0x69, 0x65, 0x64,
+		// "verified" field type 3 indicates boolean
+		0x3, 0x0, 0x0, 0x0,
+		//
+		// "aliases" field is 7 bytes in length
+		0x7, 0x0, 0x0, 0x0,
+		// "aliases" field name
+		0x61, 0x6c, 0x69, 0x61, 0x73, 0x65, 0x73,
+		// "verified" field type 4 indicates array
+		0x4, 0x0, 0x0, 0x0,
+		// "verified" has zero subfields
+		0x0, 0x0, 0x0, 0x0,
+		//
+		// "age" field is 3 bytes in length
+		0x3, 0x0, 0x0, 0x0,
+		// "age" field name
+		0x61, 0x67, 0x65,
+		// "age field type 7 indicates int64
+		0x7, 0x0, 0x0, 0x0,
+		//
+		// "rating" field is 6 bytes in length
+		0x6, 0x0, 0x0, 0x0,
+		// "rating" field name
+		0x72, 0x61, 0x74, 0x69, 0x6e, 0x67,
+		// "rating field type 6 indicates float
+		0x6, 0x0, 0x0, 0x0,
+		//
+		// -- End of 72-byte object index header ---
+		//
+		// Object header
+		//
+		// Object size
+		0xc5, 0x0, 0x0, 0x0,
+		//
+		// 5 byte variable-length string
+		0x5, 0x0, 0x0, 0x0,
+		// "posit"
+		0x70, 0x6f, 0x73, 0x69, 0x74,
+		// ready:true
+		0x1,
+		//
+		// Array Header
+		//
+		// Array size
+		0xa5, 0x0, 0x0, 0x0,
+		//
+		// Array has 3 elements
+		0x3, 0x0, 0x0, 0x0,
+		//
+		// Array Index
+		//
+		// 2020-10-01 index entry
+		0x32, 0x30, 0x32, 0x30, 0x2d, 0x31, 0x30, 0x2d, 0x30, 0x31,
+		// Record size
+		0x32, 0x0, 0x0, 0x0,
+		// 2021-03-21 index entry
+		0x32, 0x30, 0x32, 0x31, 0x2d, 0x30, 0x33, 0x2d, 0x32, 0x31,
+		// Record size
+		0x16, 0x0, 0x0, 0x0,
+		// 2022-12-15 index entry
+		0x32, 0x30, 0x32, 0x32, 0x2d, 0x31, 0x32, 0x2d, 0x31, 0x35,
+		// Record size
+		0x2b, 0x0, 0x0, 0x0,
+		//
+		// Array data
+		//
+		// 9 byte variable-length string
+		0x9, 0x0, 0x0, 0x0,
+		// "From 2020"
+		0x46, 0x72, 0x6f, 0x6d, 0x20, 0x32, 0x30, 0x32, 0x30,
+		// verified:false
+		0x0,
+		//
+		// "aliases" array size
+		0x24, 0x0, 0x0, 0x0,
+		//
+		// "aliases" array length
+		0x2, 0x0, 0x0, 0x0,
+		//
+		// "aliases" array data
+		//
+		// element 1 size
+		0x9, 0x0, 0x0, 0x0,
+		// "from 2020"
+		0x66, 0x72, 0x6f, 0x6d, 0x20, 0x32, 0x30, 0x32, 0x30,
+		//
+		// element 2 size
+		0xb, 0x0, 0x0, 0x0,
+		// "before 2021"
+		0x62, 0x65, 0x66, 0x6f, 0x72, 0x65, 0x20, 0x32, 0x30, 0x32, 0x31,
+		// 9 byte variable-length string
+		0x9, 0x0, 0x0, 0x0,
+		// "From 2021"
+		0x46, 0x72, 0x6f, 0x6d, 0x20, 0x32, 0x30, 0x32, 0x31,
+		// verified:true
+		0x1,
+		//
+		// "aliases" array size
+		0x8, 0x0, 0x0, 0x0,
+		//
+		// "aliases" array length (this is a zero length array)
+		0x0, 0x0, 0x0, 0x0,
+		//
+		// 17 byte variable-length string
+		0x11, 0x0, 0x0, 0x0,
+		// "this is from 2022"
+		0x74, 0x68, 0x69, 0x73, 0x20, 0x69, 0x73, 0x20, 0x66, 0x72, 0x6f, 0x6d, 0x20, 0x32, 0x30, 0x32, 0x32,
+		// verified:true
+		0x1,
+		//
+		// "aliases" array size
+		0x15, 0x0, 0x0, 0x0,
+		//
+		// "aliases" array length
+		0x1, 0x0, 0x0, 0x0,
+		//
+		// "aliases" array data
+		//
+		// element 1 size
+		0x9, 0x0, 0x0, 0x0,
+		// "from 2022"
+		0x66, 0x72, 0x6f, 0x6d, 0x20, 0x32, 0x30, 0x32, 0x32,
+		//
+		// Age: 55
+		0x6e, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		// Rating:  92.689
+		0x6a, 0xbc, 0x74, 0x93, 0x18, 0x2c, 0x57, 0x40,
+		//
+		// -- End of object --
+	}, buf.Bytes())
+}
+
+func (s *WriterSuite) TestWriteObjectWithArrayIndexNilSubArray() {
+	buf := &bytes.Buffer{}
+	w := NewWriter(buf)
+
+	type snap struct {
+		// Skip this field since we can determine it from the array index:
+		//
+		// Since the `List []snap` struct tag includes `index:date`, the
+		// array will be indexed using the value of this field. Since the
+		// date is written in the index, there's no need to write it again
+		// when serializing each array element, so we include `skip` here.
+		Date     string `rsf:"date,skip,fixed:10"`
+		Name     string `rsf:"name"`
+		Verified bool   `rsf:"verified"`
+		Skip     string `rsf:"-"`
+	}
+
+	a := struct {
+		Skip    string  `rsf:"-"`
+		Company string  `rsf:"company"`
+		Ready   bool    `rsf:"ready"`
+		List    []snap  `rsf:"list,index:date"`
+		Age     int     `rsf:"age"`
+		Rating  float64 `rsf:"rating"`
+	}{
+		Company: "posit",
+		Ready:   true,
+		Age:     55,
+		Rating:  92.689,
+	}
+
+	sz, err := w.WriteObject(a)
+	s.Assert().Nil(err)
+	// Object should use 141 bytes.
+	s.Assert().Equal(141, sz)
+	s.Assert().Len(buf.Bytes(), 141)
+	// Verify bytes.
+	s.Assert().Equal([]byte{
+		//
+		// Object index header
+		//
+		// Full size of index header
 		0x65, 0x0, 0x0, 0x0,
 		//
 		// Fields Index
@@ -326,12 +540,12 @@ func (s *WriterSuite) TestWriteObjectWithArrayIndex() {
 		// "rating field type 6 indicates float
 		0x6, 0x0, 0x0, 0x0,
 		//
-		// -- End of 72-byte object index header ---
+		// -- End of index header ---
 		//
 		// Object header
 		//
-		// Object size is 132 bytes
-		0x84, 0x0, 0x0, 0x0,
+		// Object size
+		0x28, 0x0, 0x0, 0x0,
 		//
 		// 5 byte variable-length string
 		0x5, 0x0, 0x0, 0x0,
@@ -342,53 +556,18 @@ func (s *WriterSuite) TestWriteObjectWithArrayIndex() {
 		//
 		// Array Header
 		//
-		// Array is 100 bytes in size
-		0x64, 0x0, 0x0, 0x0,
+		// Array is 8 bytes in size
+		0x8, 0x0, 0x0, 0x0,
 		//
-		// Array has 3 elements
-		0x3, 0x0, 0x0, 0x0,
+		// Array has zero elements
+		0x0, 0x0, 0x0, 0x0,
 		//
-		// Array Index
-		//
-		// 2020-10-01 index entry
-		0x32, 0x30, 0x32, 0x30, 0x2d, 0x31, 0x30, 0x2d, 0x30, 0x31,
-		// Record is 14 bytes in size
-		0xe, 0x0, 0x0, 0x0,
-		// 2021-03-21 index entry
-		0x32, 0x30, 0x32, 0x31, 0x2d, 0x30, 0x33, 0x2d, 0x32, 0x31,
-		// Record is 14 bytes in size
-		0xe, 0x0, 0x0, 0x0,
-		// 2022-12-15 index entry
-		0x32, 0x30, 0x32, 0x32, 0x2d, 0x31, 0x32, 0x2d, 0x31, 0x35,
-		// Record is 22 bytes in size
-		0x16, 0x0, 0x0, 0x0,
-		//
-		// Array data
-		//
-		// 9 byte variable-length string
-		0x9, 0x0, 0x0, 0x0,
-		// "From 2020"
-		0x46, 0x72, 0x6f, 0x6d, 0x20, 0x32, 0x30, 0x32, 0x30,
-		// verified:false
-		0x0,
-		// 9 byte variable-length string
-		0x9, 0x0, 0x0, 0x0,
-		// "From 2021"
-		0x46, 0x72, 0x6f, 0x6d, 0x20, 0x32, 0x30, 0x32, 0x31,
-		// verified:true
-		0x1,
-		// 17 byte variable-length string
-		0x11, 0x0, 0x0, 0x0,
-		// "this is from 2022"
-		0x74, 0x68, 0x69, 0x73, 0x20, 0x69, 0x73, 0x20, 0x66, 0x72, 0x6f, 0x6d, 0x20, 0x32, 0x30, 0x32, 0x32,
-		// verified:true
-		0x1,
 		// Age: 55
 		0x6e, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
 		// Rating:  92.689
 		0x6a, 0xbc, 0x74, 0x93, 0x18, 0x2c, 0x57, 0x40,
 		//
-		// -- End of 114-byte object --
+		// -- End of object --
 	}, buf.Bytes())
 }
 
@@ -581,6 +760,32 @@ func (s *WriterSuite) TestWriteObjectArray() {
 		// "three"
 		0x5, 0x0, 0x0, 0x0,
 		0x74, 0x68, 0x72, 0x65, 0x65,
+	}, buf.Bytes())
+}
+
+func (s *WriterSuite) TestWriteObjectNilArray() {
+	buf := &bytes.Buffer{}
+	w := NewWriter(buf)
+
+	var a []string
+
+	sz, err := w.WriteObject(a)
+	s.Assert().Nil(err)
+	// Object should use 12 bytes
+	s.Assert().Equal(12, sz)
+	s.Assert().Len(buf.Bytes(), 12)
+	// Verify bytes.
+	s.Assert().Equal([]byte{
+		// Full object size of 12
+		0xc, 0x0, 0x0, 0x0,
+		//
+		// Full array size of 8
+		0x8, 0x0, 0x0, 0x0,
+		//
+		// Array length of 0
+		0x0, 0x0, 0x0, 0x0,
+		//
+		// no elements
 	}, buf.Bytes())
 }
 
