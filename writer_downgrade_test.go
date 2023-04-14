@@ -306,7 +306,7 @@ func (s *WriterDowngradeSuite) validateRead(b *bytes.Buffer) {
 		err = r.AdvanceTo(buf, "products", "name")
 		s.Assert().Nil(err)
 		name, err = r.ReadStringField(buf)
-		s.Require().Nil(err)
+		s.Assert().Nil(err)
 		s.Assert().Equal("rake", name)
 
 		// Read the second array element's "price" field
