@@ -4,12 +4,15 @@ package rsf
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"reflect"
 	"strconv"
 	"strings"
 )
+
+var ErrInvalidIndexFieldType = errors.New("invalid index field type")
 
 func (f *rsfWriter) WriteObject(v any) (int, error) {
 	var indexBuf = &bytes.Buffer{}
@@ -95,7 +98,18 @@ func (f *rsfWriter) writeStruct(v reflect.Value, tParent *tag, buf *bytes.Buffer
 	var totalSz int
 	for i := 0; i < v.NumField(); i++ {
 		t := &tag{}
-		skip, err := getTagInfo(v.Type(), i, t, tParent, v.Field(i).String())
+
+		// `fieldVal` is used for indexing arrays. We currently only support
+		// fixed strings and integers.
+		var fieldVal any
+		switch v.Field(i).Type().Kind() {
+		case reflect.String:
+			fieldVal = v.Field(i).String()
+		case reflect.Int, reflect.Int64, reflect.Int32, reflect.Int16, reflect.Int8:
+			fieldVal = v.Field(i).Int()
+		}
+
+		skip, err := getTagInfo(v.Type(), i, t, tParent, fieldVal)
 		if err != nil {
 			return 0, err
 		}
@@ -112,7 +126,7 @@ func (f *rsfWriter) writeStruct(v reflect.Value, tParent *tag, buf *bytes.Buffer
 	return totalSz, nil
 }
 
-func getTagInfo(v reflect.Type, index int, t, tParent *tag, fieldVal string) (bool, error) {
+func getTagInfo(v reflect.Type, index int, t, tParent *tag, fieldVal any) (bool, error) {
 	// Get the field tag value
 	rawTag := v.Field(index).Tag.Get(tagName)
 	if rawTag == rsfIgnore {
@@ -170,11 +184,22 @@ func (f *rsfWriter) writeArray(v reflect.Value, t *tag, buf *bytes.Buffer) (int,
 		bufLen := snapBuf.Len()
 
 		if t.index != "" {
-			sz, err = f.WriteFixedStringField(0, t.indexSz, t.indexVal, snapIndexBuf)
-			if err != nil {
-				return 0, err
+			switch v := t.indexVal.(type) {
+			case string:
+				sz, err = f.WriteFixedStringField(0, t.indexSz, v, snapIndexBuf)
+				if err != nil {
+					return 0, err
+				}
+				totalSz += sz
+			case int64:
+				sz, err = f.WriteInt64Field(0, v, snapIndexBuf)
+				if err != nil {
+					return 0, err
+				}
+				totalSz += sz
+			default:
+				return 0, ErrInvalidIndexFieldType
 			}
-			totalSz += sz
 			sz, err = f.WriteSizeField(0, bufLen-lastLen, snapIndexBuf)
 			if err != nil {
 				return 0, err

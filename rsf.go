@@ -106,5 +106,5 @@ type tag struct {
 	fixed    int
 	index    string
 	indexSz  int
-	indexVal string
+	indexVal any
 }

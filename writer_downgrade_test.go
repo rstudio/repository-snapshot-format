@@ -77,10 +77,15 @@ func (s *WriterDowngradeSuite) TestWriteObjectAndDowngrade() {
 		Trust    bool   `rsf:"trust"` // Not in original struct
 	}
 	// Add a new type that was also not included in the original data.
+	type variation struct {
+		Id          int8   `rsf:"id,skip"`
+		Description string `rsf:"description"`
+	}
 	type product struct {
-		Barcode string  `rsf:"barcode,skip,fixed:12"`
-		Name    string  `rsf:"name"`
-		Price   float32 `rsf:"price"`
+		Barcode    string      `rsf:"barcode,skip,fixed:12"`
+		Name       string      `rsf:"name"`
+		Price      float32     `rsf:"price"`
+		Variations []variation `rsf:"variations,index:id"`
 	}
 	b := struct {
 		Location string    `rsf:"location"` // Not in original struct
@@ -135,6 +140,16 @@ func (s *WriterDowngradeSuite) TestWriteObjectAndDowngrade() {
 				Barcode: "012345678901",
 				Name:    "shovel",
 				Price:   32.99,
+				Variations: []variation{
+					{
+						Id:          9,
+						Description: "variation one",
+					},
+					{
+						Id:          11,
+						Description: "variation two",
+					},
+				},
 			},
 			{
 				Barcode: "987654321098",
@@ -147,7 +162,7 @@ func (s *WriterDowngradeSuite) TestWriteObjectAndDowngrade() {
 	w2 := NewWriter(buf2)
 	sz, err = w2.WriteObject(b)
 	s.Assert().Nil(err)
-	s.Assert().Equal(631, sz)
+	s.Assert().Equal(750, sz)
 
 	// Read the legacy struct with the expected set of fields.
 	s.validateRead(buf1)
@@ -235,15 +250,63 @@ func (s *WriterDowngradeSuite) validateRead(b *bytes.Buffer) {
 		s.Assert().Nil(err)
 		s.Assert().Equal(32.99, math.Round(price*100)/100)
 
-		// Advance to the second array element
-		err = r.AdvanceToNextElement(buf)
-		s.Assert().Nil(err)
+		err = r.AdvanceTo(buf, "products", "variations")
+		if err != ErrNoSuchField {
+			s.Assert().Nil(err)
+
+			// Read the first array element's "variations" array index
+			//
+			// full array size
+			_, err = r.ReadSizeField(buf)
+			s.Assert().Nil(err)
+			//
+			// Array length should be two
+			arrayLen, err = r.ReadSizeField(buf)
+			s.Assert().Nil(err)
+			s.Assert().Equal(2, arrayLen)
+			//
+			// Array index
+			// Entry 1
+			id, err := r.ReadIntField(buf)
+			s.Assert().Nil(err)
+			s.Assert().Equal(int64(9), id)
+			_, err = r.ReadSizeField(buf)
+			s.Assert().Nil(err)
+			//
+			// Entry 2
+			id, err = r.ReadIntField(buf)
+			s.Assert().Nil(err)
+			s.Assert().Equal(int64(11), id)
+			_, err = r.ReadSizeField(buf)
+			s.Assert().Nil(err)
+			//
+			// Array elements
+			err = r.AdvanceTo(buf, "products", "variations", "description")
+			s.Assert().Nil(err)
+			desc, err := r.ReadStringField(buf)
+			s.Assert().Nil(err)
+			s.Assert().Equal("variation one", desc)
+			//
+			// Next element
+			err = r.AdvanceToNextElement(buf)
+			s.Assert().Nil(err)
+			//
+			err = r.AdvanceTo(buf, "products", "variations", "description")
+			s.Assert().Nil(err)
+			desc, err = r.ReadStringField(buf)
+			s.Assert().Nil(err)
+			s.Assert().Equal("variation two", desc)
+
+			// Advance to the array end
+			err = r.AdvanceToNextElement(buf, "products", "")
+			s.Assert().Nil(err)
+		}
 
 		// Get the second array element's "Name" field
 		err = r.AdvanceTo(buf, "products", "name")
 		s.Assert().Nil(err)
 		name, err = r.ReadStringField(buf)
-		s.Assert().Nil(err)
+		s.Require().Nil(err)
 		s.Assert().Equal("rake", name)
 
 		// Read the second array element's "price" field
@@ -252,6 +315,23 @@ func (s *WriterDowngradeSuite) validateRead(b *bytes.Buffer) {
 		price, err = r.ReadFloatField(buf)
 		s.Assert().Nil(err)
 		s.Assert().Equal(15.44, math.Round(price*100)/100)
+
+		// Read the second array element's "variations" field
+		err = r.AdvanceTo(buf, "products", "variations")
+		if err != ErrNoSuchField {
+			s.Assert().Nil(err)
+
+			// Read the first array element's "variations" array index
+			//
+			// full array size
+			_, err = r.ReadSizeField(buf)
+			s.Assert().Nil(err)
+			//
+			// Array length should be zero
+			arrayLen, err = r.ReadSizeField(buf)
+			s.Assert().Nil(err)
+			s.Assert().Equal(0, arrayLen)
+		}
 
 		// Advance to the array end
 		err = r.AdvanceToNextElement(buf)
