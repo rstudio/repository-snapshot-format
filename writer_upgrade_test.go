@@ -77,7 +77,7 @@ func (s *WriterUpgradeSuite) TestWriteObjectAndUpgrade() {
 	}
 	// Add a new type that was also not included in the original data.
 	type product struct {
-		Barcode string  `rsf:"barcode,skip,fixed:10"`
+		Barcode int32   `rsf:"barcode,skip"`
 		Name    string  `rsf:"name"`
 		Price   float32 `rsf:"price"`
 	}
@@ -131,12 +131,12 @@ func (s *WriterUpgradeSuite) TestWriteObjectAndUpgrade() {
 		},
 		Products: []product{
 			{
-				Barcode: "0123456789",
+				Barcode: int32(123456789),
 				Name:    "shovel",
 				Price:   32.99,
 			},
 			{
-				Barcode: "9876543210",
+				Barcode: int32(1876543210),
 				Name:    "rake",
 				Price:   15.44,
 			},
