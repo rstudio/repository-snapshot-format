@@ -2,6 +2,7 @@
 package rsf
 
 import (
+	"bufio"
 	"bytes"
 	"testing"
 
@@ -500,4 +501,82 @@ func (s *WriterComplexSuite) TestWriteComplexObject() {
 		// 55
 		0x6e, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
 	}, buf.Bytes())
+
+	pbuf := &bytes.Buffer{}
+	err := Print(pbuf, bufio.NewReader(buf), FullPackageRecordPyPI{})
+	s.Require().Nil(err)
+	s.Require().Equal(`
+--------------------------------------------------------
+                FullPackageRecordPyPI[1]                
+--------------------------------------------------------
+homepage (string): http://homepage.com
+cname (string): numpy
+pname (string): Numpy
+classifiers (array(2)):
+    -
+    name (string): License
+    type (int): 2
+    values (array(3)):
+        -one
+        -two
+        -three
+    -
+    name (string): Usage
+    type (int): 1
+    values (array(0)):
+author (string): an-author
+snapshots (indexed array(3)):
+    - 2020-10-11
+    description (string): The description of numpy
+    deleted (bool): false
+    version (string): 3.0.3
+    summary (string): numpy summary
+    license (string): MIT
+    - 2020-10-10
+    description (string): Older description of numpy
+    deleted (bool): false
+    version (string): 3.0.2
+    summary (string): numpy summary
+    license (string): MIT
+    - 2020-10-09
+    description (string): 
+    deleted (bool): true
+    version (string): 
+    summary (string): 
+    license (string): 
+popularity (int): 55
+
+--------------------------------------------------------
+                FullPackageRecordPyPI[2]                
+--------------------------------------------------------
+homepage (string): http://django-home.com
+cname (string): django
+pname (string): Django
+classifiers (array(2)):
+    -
+    name (string): License
+    type (int): 2
+    values (array(2)):
+        -one
+        -two
+    -
+    name (string): Usage
+    type (int): 1
+    values (array(0)):
+author (string): be-an-author
+snapshots (indexed array(2)):
+    - 2020-10-11
+    description (string): The description of django
+    deleted (bool): false
+    version (string): 3.0.3
+    summary (string): django summary
+    license (string): MIT
+    - 2020-10-09
+    description (string): 
+    deleted (bool): true
+    version (string): 
+    summary (string): 
+    license (string): 
+popularity (int): 55
+`, "\n"+pbuf.String())
 }

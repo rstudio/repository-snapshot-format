@@ -169,7 +169,57 @@ func (s *WriterDowngradeSuite) TestWriteObjectAndDowngrade() {
 
 	// Read the new struct with all the new fields. The results should
 	// be identical.
+	bufSave := bytes.NewBuffer(buf2.Bytes())
 	s.validateRead(buf2)
+
+	pbuf := &bytes.Buffer{}
+	err = Print(pbuf, bufio.NewReader(bufSave), b)
+	s.Require().Nil(err)
+	s.Require().Equal(`
+-----------------------------------
+                [1]                
+-----------------------------------
+location (string): Albuquerque
+company (string): posit
+products (indexed array(2)):
+    - 012345678901
+    name (string): shovel
+    price (float): 32.990002
+    variations (indexed array(2)):
+        - 9
+        description (string): variation one
+        - 11
+        description (string): variation two
+    - 987654321098
+    name (string): rake
+    price (float): 15.440000
+    variations (array(0)):
+ready (bool): true
+portable (bool): true
+list (indexed array(3)):
+    - 2020-10-01
+    guid (string(36)): 199d22ca-719f-40e6-a108-1f2147564168
+    name (string): From 2020
+    project (string): albatross
+    verified (bool): false
+    trust (bool): true
+    - 2021-03-21
+    guid (string(36)): eba30155-b31c-4287-a7a1-1018010859c1
+    name (string): From 2021
+    project (string): bluebird
+    verified (bool): true
+    trust (bool): false
+    - 2022-12-15
+    guid (string(36)): c7f67f5f-7891-42b0-bdbc-82a0e5cd5572
+    name (string): this is from 2022
+    project (string): none
+    verified (bool): true
+    trust (bool): true
+income (float): 56999.980000
+age (int): 55
+rating (float): 92.689000
+zip (int): 75043
+`, "\n"+pbuf.String())
 }
 
 func (s *WriterDowngradeSuite) validateRead(b *bytes.Buffer) {
