@@ -2,8 +2,10 @@
 package rsf
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/binary"
+	"fmt"
 	"math"
 	"reflect"
 	"testing"
@@ -1162,4 +1164,90 @@ func (s *WriterSuite) TestWriteObjectString() {
 		// "this is a test"
 		0x74, 0x68, 0x69, 0x73, 0x20, 0x69, 0x73, 0x20, 0x61, 0x20, 0x74, 0x65, 0x73, 0x74,
 	}, buf.Bytes())
+}
+
+// TestWriteObjectArrayOfArrays tests writing a struct that contains an array
+// or arrays. This is supported by RSF, but is not well-supported by printing.
+func (s *WriterSuite) TestWriteObjectArrayOfArrays() {
+	buf := &bytes.Buffer{}
+	w := NewWriter(buf)
+
+	type TestObject struct {
+		Arrays [][]string `rsf:"arrays"`
+	}
+	a := TestObject{
+		Arrays: [][]string{
+			{
+				"a1", "a2", "a3",
+			},
+			{
+				"b1", "b2",
+			},
+		},
+	}
+
+	sz, err := w.WriteObject(a)
+	s.Assert().Nil(err)
+	// Object should use 80 bytes
+	s.Assert().Equal(80, sz)
+	s.Assert().Len(buf.Bytes(), 80)
+	// Verify bytes.
+	s.Assert().Equal([]byte{
+		// Index size
+		0x16, 0x0, 0x0, 0x0,
+		// "arrays" index field
+		0x6, 0x0, 0x0, 0x0,
+		0x61, 0x72, 0x72, 0x61, 0x79, 0x73,
+		// array field type
+		0x4, 0x0, 0x0, 0x0,
+		// zero subfields since not a struct
+		0x0, 0x0, 0x0, 0x0,
+
+		// Full object size
+		0x3a, 0x0, 0x0, 0x0,
+		//
+		// Full array size of 34
+		0x36, 0x0, 0x0, 0x0,
+		//
+		// Array length
+		0x2, 0x0, 0x0, 0x0,
+		//
+		// Sub-array(1) size
+		0x1a, 0x0, 0x0, 0x0,
+		// Sub-array(1) length
+		0x3, 0x0, 0x0, 0x0,
+		// "a1"
+		0x2, 0x0, 0x0, 0x0,
+		0x61, 0x31,
+		// "a2"
+		0x2, 0x0, 0x0, 0x0,
+		0x61, 0x32,
+		// "a3"
+		0x2, 0x0, 0x0, 0x0,
+		0x61, 0x33,
+		// Sub-array(1) size
+		0x14, 0x0, 0x0, 0x0,
+		// Sub-array(2) length
+		0x2, 0x0, 0x0, 0x0,
+		// "b1"
+		0x2, 0x0, 0x0, 0x0,
+		0x62, 0x31,
+		// "b2"
+		0x2, 0x0, 0x0, 0x0,
+		0x62, 0x32,
+	}, buf.Bytes())
+
+	// Cannot yet print arrays of arrays, but falls back gracefully to indicate that
+	// an array of arrays was encountered.
+	pbuf := &bytes.Buffer{}
+	err = Print(pbuf, bufio.NewReader(buf), TestObject{})
+	fmt.Printf(pbuf.String())
+	s.Require().Nil(err)
+	s.Require().Equal(`
+---------------------------------------------
+                TestObject[1]                
+---------------------------------------------
+arrays (array(2))
+    - cannot print data for arrays of arrays
+`, "\n"+pbuf.String())
 }
