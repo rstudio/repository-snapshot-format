@@ -1247,7 +1247,7 @@ func (s *WriterSuite) TestWriteObjectArrayOfArrays() {
 ---------------------------------------------
                 TestObject[1]                
 ---------------------------------------------
-arrays (array(2))
+arrays (array(2)):
     - cannot print data for arrays of arrays
 `, "\n"+pbuf.String())
 }

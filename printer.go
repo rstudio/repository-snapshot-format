@@ -90,6 +90,9 @@ func indexArrays(parent, parentIndex string, v reflect.Type, sizes map[string]in
 					sizes[parent] = t.fixed
 					kinds[parent] = reflect.String
 				}
+				// RSF also supports integer indexes, which should not have a `fixed:x` struct tag. Fall
+				// through without an `else` to ensure that we correctly handle any odd cases where an
+				// integer index has a `fixed` tag.
 				switch sub.Type.Kind() {
 				case reflect.Int, reflect.Int64, reflect.Int32, reflect.Int16, reflect.Int8:
 					sizes[parent] = 10
@@ -206,12 +209,12 @@ func printField(sizes map[string]int, kinds map[string]reflect.Kind, parentKey s
 		}
 
 		if len(indexValues) > 0 {
-			_, err = fmt.Fprintf(w, "%s%s (indexed array(%d))\n", pad, f.FieldName, arrayLen)
+			_, err = fmt.Fprintf(w, "%s%s (indexed array(%d)):\n", pad, f.FieldName, arrayLen)
 			if err != nil {
 				return err
 			}
 		} else {
-			_, err = fmt.Fprintf(w, "%s%s (array(%d))\n", pad, f.FieldName, arrayLen)
+			_, err = fmt.Fprintf(w, "%s%s (array(%d)):\n", pad, f.FieldName, arrayLen)
 			if err != nil {
 				return err
 			}
@@ -295,6 +298,8 @@ func printField(sizes map[string]int, kinds map[string]reflect.Kind, parentKey s
 				}
 			}
 		}
+	default:
+		return fmt.Errorf("cannot print unknown field %s with type %d", f.FieldName, f.FieldType)
 	}
 	return nil
 }

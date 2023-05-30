@@ -512,20 +512,20 @@ func (s *WriterComplexSuite) TestWriteComplexObject() {
 homepage (string): http://homepage.com
 cname (string): numpy
 pname (string): Numpy
-classifiers (array(2))
+classifiers (array(2)):
     -
     name (string): License
     type (int): 2
-    values (array(3))
+    values (array(3)):
         -one
         -two
         -three
     -
     name (string): Usage
     type (int): 1
-    values (array(0))
+    values (array(0)):
 author (string): an-author
-snapshots (indexed array(3))
+snapshots (indexed array(3)):
     - 2020-10-11
     description (string): The description of numpy
     deleted (bool): false
@@ -552,19 +552,19 @@ popularity (int): 55
 homepage (string): http://django-home.com
 cname (string): django
 pname (string): Django
-classifiers (array(2))
+classifiers (array(2)):
     -
     name (string): License
     type (int): 2
-    values (array(2))
+    values (array(2)):
         -one
         -two
     -
     name (string): Usage
     type (int): 1
-    values (array(0))
+    values (array(0)):
 author (string): be-an-author
-snapshots (indexed array(2))
+snapshots (indexed array(2)):
     - 2020-10-11
     description (string): The description of django
     deleted (bool): false

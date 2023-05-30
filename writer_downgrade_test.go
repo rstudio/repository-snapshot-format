@@ -181,11 +181,11 @@ func (s *WriterDowngradeSuite) TestWriteObjectAndDowngrade() {
 -----------------------------------
 location (string): Albuquerque
 company (string): posit
-products (indexed array(2))
+products (indexed array(2)):
     - 012345678901
     name (string): shovel
     price (float): 32.990002
-    variations (indexed array(2))
+    variations (indexed array(2)):
         - 9
         description (string): variation one
         - 11
@@ -193,10 +193,10 @@ products (indexed array(2))
     - 987654321098
     name (string): rake
     price (float): 15.440000
-    variations (array(0))
+    variations (array(0)):
 ready (bool): true
 portable (bool): true
-list (indexed array(3))
+list (indexed array(3)):
     - 2020-10-01
     guid (string(36)): 199d22ca-719f-40e6-a108-1f2147564168
     name (string): From 2020
