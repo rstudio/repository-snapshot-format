@@ -102,9 +102,10 @@ const (
 
 // A struct used to record and pass information about `rsf` struct tags
 type tag struct {
-	name     string
-	fixed    int
-	index    string
-	indexSz  int
-	indexVal any
+	name      string
+	fixed     int
+	index     string
+	indexSz   int
+	indexVal  any
+	indexType int
 }

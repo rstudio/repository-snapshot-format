@@ -125,8 +125,55 @@ func (f *rsfWriter) writeIndexArray(v reflect.Type, t *tag, buf *bytes.Buffer) (
 	}
 	totalSz += sz
 
-	// For struct arrays, we may need to write additional info about the struct
 	el := v.Elem()
+
+	// For an indexed struct array, find the index size
+	if f.version > 1 {
+		if el.Kind() == reflect.Struct && t.index != "" {
+			sz, err = f.WriteBoolField(0, true, buf)
+			if err != nil {
+				return 0, err
+			}
+			totalSz += sz
+
+			// Calculate the index field size. This can be done simply by getting the tag
+			// info for each subfield.
+			for i := 0; i < el.NumField(); i++ {
+				subT := &tag{}
+				_, err = getTagInfo(el, i, subT, t, "")
+				if err != nil {
+					return 0, err
+				}
+			}
+
+			// Ensure that the indexed field was found.
+			if t.indexSz == 0 {
+				return 0, fmt.Errorf("could not calculate indexed field %s size for array %s", t.index, t.name)
+			}
+
+			// Write the index type field
+			sz, err = f.WriteSizeField(0, t.indexType, buf)
+			if err != nil {
+				return 0, err
+			}
+			totalSz += sz
+
+			// Write the index field size
+			sz, err = f.WriteSizeField(0, t.indexSz, buf)
+			if err != nil {
+				return 0, err
+			}
+			totalSz += sz
+		} else {
+			sz, err = f.WriteBoolField(0, false, buf)
+			if err != nil {
+				return 0, err
+			}
+			totalSz += sz
+		}
+	}
+
+	// For struct arrays, we may need to write additional info about the struct
 	var subfields int
 	subfieldsBuf := &bytes.Buffer{}
 	if el.Kind() == reflect.Struct {
@@ -135,6 +182,15 @@ func (f *rsfWriter) writeIndexArray(v reflect.Type, t *tag, buf *bytes.Buffer) (
 		if err != nil {
 			return 0, err
 		}
+	}
+
+	// Write the array type field
+	if f.version > 1 {
+		sz, err = f.WriteSizeField(0, int(el.Kind()), buf)
+		if err != nil {
+			return 0, err
+		}
+		totalSz += sz
 	}
 
 	// Record the number of subfields in the array

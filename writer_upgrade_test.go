@@ -57,10 +57,10 @@ func (s *WriterUpgradeSuite) TestWriteObjectAndUpgrade() {
 		},
 	}
 	buf1 := &bytes.Buffer{}
-	w1 := NewWriter(buf1)
+	w1 := NewWriterWithVersion(buf1, Version2)
 	sz, err := w1.WriteObject(a)
 	s.Assert().Nil(err)
-	s.Assert().Equal(233, sz)
+	s.Assert().Equal(249, sz)
 
 	// Create some "upgraded" objects that include new fields not present in the
 	// legacy structs that follow. The structs maintain the original fields and
@@ -143,10 +143,10 @@ func (s *WriterUpgradeSuite) TestWriteObjectAndUpgrade() {
 		},
 	}
 	buf2 := &bytes.Buffer{}
-	w2 := NewWriter(buf2)
+	w2 := NewWriterWithVersion(buf2, Version2)
 	sz, err = w2.WriteObject(b)
 	s.Assert().Nil(err)
-	s.Assert().Equal(627, sz)
+	s.Assert().Equal(656, sz)
 
 	// Read the legacy struct with the expected set of fields.
 	s.validateRead(buf1)

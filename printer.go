@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-func Print(w io.Writer, r *bufio.Reader, o any) error {
+func Print(w io.Writer, r *bufio.Reader) error {
 	// Create a new reader since we need to read the RSF data.
 	reader := NewReader()
 
@@ -17,15 +17,6 @@ func Print(w io.Writer, r *bufio.Reader, o any) error {
 	idx, err := reader.ReadIndex(r)
 	if err != nil {
 		return fmt.Errorf("error reading index: %s", err)
-	}
-
-	// Also extract information about array indexes from the object. This
-	// information is not available in the index.
-	sizes := make(map[string]int)
-	kinds := make(map[string]reflect.Kind)
-	err = indexArrays("", "", reflect.TypeOf(o), sizes, kinds)
-	if err != nil {
-		return fmt.Errorf("error indexing arrays: %s", err)
 	}
 
 	// Iterate the fields recursively and print the data.
@@ -52,7 +43,7 @@ func Print(w io.Writer, r *bufio.Reader, o any) error {
 
 		// Print object header
 		pad := strings.Repeat(" ", 16)
-		header := fmt.Sprintf("%s%s[%d]%s", pad, reflect.TypeOf(o).Name(), i, pad)
+		header := fmt.Sprintf("%sObject[%d]%s", pad, i, pad)
 		line := strings.Repeat("-", len(header))
 		_, err = fmt.Fprintf(w, "%s\n%s\n%s\n", line, header, line)
 		if err != nil {
@@ -61,7 +52,7 @@ func Print(w io.Writer, r *bufio.Reader, o any) error {
 
 		// Print data for each field of the object.
 		for _, f := range idx {
-			err = printField(sizes, kinds, "", f, w, r, reader, 0)
+			err = printField("", f, w, r, reader, 0)
 			if err != nil {
 				if err == io.EOF {
 					return nil
@@ -72,49 +63,7 @@ func Print(w io.Writer, r *bufio.Reader, o any) error {
 	}
 }
 
-func indexArrays(parent, parentIndex string, v reflect.Type, sizes map[string]int, kinds map[string]reflect.Kind) error {
-	if v.Kind() == reflect.Struct {
-		for i := 0; i < v.NumField(); i++ {
-			t := &tag{}
-			_, err := getTagInfo(v, i, t, &tag{}, "")
-			if err != nil {
-				return err
-			}
-			key := t.name
-			if parent != "" {
-				key = strings.Join([]string{parent, t.name}, "...")
-			}
-			sub := v.Field(i)
-			if parentIndex == t.name {
-				if t.fixed > 0 {
-					sizes[parent] = t.fixed
-					kinds[parent] = reflect.String
-				}
-				// RSF also supports integer indexes, which should not have a `fixed:x` struct tag. Fall
-				// through without an `else` to ensure that we correctly handle any odd cases where an
-				// integer index has a `fixed` tag.
-				switch sub.Type.Kind() {
-				case reflect.Int, reflect.Int64, reflect.Int32, reflect.Int16, reflect.Int8:
-					sizes[parent] = 10
-					kinds[parent] = reflect.Int64
-				}
-			}
-			if sub.Type.Kind() == reflect.Slice {
-				if sub.Type.Elem().Kind() == reflect.Struct {
-					err = indexArrays(key, t.index, sub.Type.Elem(), sizes, kinds)
-					if err != nil {
-						return err
-					}
-				} else {
-					kinds[key] = sub.Type.Elem().Kind()
-				}
-			}
-		}
-	}
-	return nil
-}
-
-func printField(sizes map[string]int, kinds map[string]reflect.Kind, parentKey string, f IndexEntry, w io.Writer, r *bufio.Reader, reader Reader, indent int) error {
+func printField(parentKey string, f IndexEntry, w io.Writer, r *bufio.Reader, reader Reader, indent int) error {
 
 	pad := strings.Repeat(" ", indent*4)
 	switch f.FieldType {
@@ -181,9 +130,10 @@ func printField(sizes map[string]int, kinds map[string]reflect.Kind, parentKey s
 		indexValues := make([]any, 0)
 
 		// Record index values
-		if indexSz, ok := sizes[key]; ok {
+		if f.Indexed {
+			indexSz := f.IndexSize
 			for i := 0; i < arrayLen; i++ {
-				switch kinds[key] {
+				switch reflect.Kind(f.IndexType) {
 				case reflect.String:
 					var sIndexVal string
 					sIndexVal, err = reader.ReadFixedStringField(indexSz, r)
@@ -234,7 +184,7 @@ func printField(sizes map[string]int, kinds map[string]reflect.Kind, parentKey s
 				}
 				_, err = fmt.Fprintf(w, "%s-%s\n", pad+strings.Repeat(" ", 4), indexVal)
 				for _, subfield := range f.Subfields {
-					err = printField(sizes, kinds, key, subfield, w, r, reader, indent+1)
+					err = printField(key, subfield, w, r, reader, indent+1)
 					if err != nil {
 						if err == io.EOF {
 							return nil
@@ -244,7 +194,8 @@ func printField(sizes map[string]int, kinds map[string]reflect.Kind, parentKey s
 				}
 			} else {
 				_, err = fmt.Fprintf(w, "%s-", pad+strings.Repeat(" ", 4))
-				switch kinds[key] {
+
+				switch reflect.Kind(f.SubfieldType) {
 				case reflect.String:
 					var s string
 					s, err = reader.ReadStringField(r)
