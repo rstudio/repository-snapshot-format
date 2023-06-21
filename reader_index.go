@@ -3,6 +3,8 @@ package rsf
 
 import (
 	"bufio"
+	"bytes"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
@@ -13,10 +15,14 @@ type Index []IndexEntry
 const Top = ""
 
 type IndexEntry struct {
-	FieldName string
-	FieldType int
-	FieldSize int
-	Subfields Index
+	FieldName    string
+	FieldType    int
+	FieldSize    int
+	Indexed      bool
+	IndexSize    int
+	IndexType    int
+	SubfieldType int
+	Subfields    Index
 }
 
 func (f *rsfReader) SetIndex(newIndex Index) {
@@ -25,20 +31,57 @@ func (f *rsfReader) SetIndex(newIndex Index) {
 
 func (f *rsfReader) ReadIndex(r io.Reader) (Index, error) {
 	var err error
-	f.index, err = f.readIndexEntries(r, 0, 0)
+
+	// Peek at the first three bytes to see if an index version is included
+	header := make([]byte, 3)
+	n, err := r.Read(header)
+	if err != nil {
+		return nil, err
+	}
+	if n != 3 {
+		return nil, fmt.Errorf("unexpected index header read length %d", n)
+	}
+
+	// If the first three bytes equal an index version, then record the
+	// index version.
+	if bytes.Equal(header, IndexVersion2) {
+		f.indexVersion = 2
+	} else {
+		f.indexVersion = 1
+	}
+
+	var sz int
+	if f.indexVersion > 1 {
+		// If an index version was found, simply read the full size field.
+		sz, err = f.ReadSizeField(r)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		// If an index version was not found, we need to read one more byte to get
+		// the size, since we've already read the first three bytes.
+		// used `Peek` to determine the first three byte values.
+		lastByte := make([]byte, 1)
+		n, err = r.Read(lastByte)
+		if err != nil {
+			return nil, err
+		}
+		if n != 1 {
+			return nil, fmt.Errorf("unexpected index size supplemental read length %d", n)
+		}
+
+		// Manually increment pos
+		f.pos += 4
+		size := append(header, lastByte[0])
+		sz = int(binary.LittleEndian.Uint32(size))
+	}
+
+	f.index, err = f.readIndexEntries(r, sz, 0)
 	return f.index, err
 }
 
 func (f *rsfReader) readIndexEntries(r io.Reader, sz, limit int) (Index, error) {
 	var err error
-
-	// On the first pass, read the size field, which indicates the full size of the index.
-	if sz == 0 {
-		sz, err = f.ReadSizeField(r)
-		if err != nil {
-			return nil, err
-		}
-	}
 
 	entries := make([]IndexEntry, 0)
 	var pass int
@@ -71,7 +114,37 @@ func (f *rsfReader) readIndexEntries(r io.Reader, sz, limit int) (Index, error) 
 
 		// For arrays, read the count of the number of subfields.
 		var subfieldCount int
+		var indexed bool
+		var arrayFieldType int
+		var indexSize, indexType int
 		if fieldType == FieldTypeArray {
+
+			// Older indexes didn't include the following two fields
+			if f.indexVersion >= 2 {
+				indexed, err = f.ReadBoolField(r)
+				if err != nil {
+					return nil, err
+				}
+
+				if indexed {
+					indexType, err = f.ReadSizeField(r)
+					if err != nil {
+						return nil, err
+					}
+
+					indexSize, err = f.ReadSizeField(r)
+					if err != nil {
+						return nil, err
+					}
+				}
+
+				arrayFieldType, err = f.ReadSizeField(r)
+				if err != nil {
+					return nil, err
+				}
+
+			}
+
 			subfieldCount, err = f.ReadSizeField(r)
 			if err != nil {
 				return nil, err
@@ -104,10 +177,14 @@ func (f *rsfReader) readIndexEntries(r io.Reader, sz, limit int) (Index, error) 
 
 		// Append the index entry, including any subfields.
 		entries = append(entries, IndexEntry{
-			FieldName: fieldName,
-			FieldType: fieldType,
-			FieldSize: fieldSize,
-			Subfields: subfields,
+			FieldName:    fieldName,
+			FieldType:    fieldType,
+			FieldSize:    fieldSize,
+			SubfieldType: arrayFieldType,
+			Subfields:    subfields,
+			Indexed:      indexed,
+			IndexSize:    indexSize,
+			IndexType:    indexType,
 		})
 	}
 

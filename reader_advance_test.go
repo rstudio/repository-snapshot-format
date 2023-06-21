@@ -25,14 +25,14 @@ func (s *ReaderMigrationSuite) TestAdvanceFields() {
 	// Read the index
 	_, err := r.ReadIndex(buf)
 	s.Assert().Nil(err)
-	s.Assert().Equal(101, r.Pos())
+	s.Assert().Equal(114, r.Pos())
 
 	// Record should be 132 bytes in length
 	recordSz, err := r.ReadSizeField(buf)
 	s.Assert().Nil(err)
 	s.Assert().Equal(132, recordSz)
 	// Position increased by 4 (size field is 4 bytes)
-	s.Assert().Equal(105, r.Pos())
+	s.Assert().Equal(118, r.Pos())
 
 	// Company
 	err = r.AdvanceTo(buf, "company")
@@ -41,7 +41,7 @@ func (s *ReaderMigrationSuite) TestAdvanceFields() {
 	s.Assert().Nil(err)
 	s.Assert().Equal("posit", company)
 	// Position increased by 9. Size field is 4 bytes + data is 5 bytes.
-	s.Assert().Equal(114, r.Pos())
+	s.Assert().Equal(127, r.Pos())
 
 	// Skip the ready field and advance to "list"
 	// Array should be 100 bytes in size
@@ -52,17 +52,17 @@ func (s *ReaderMigrationSuite) TestAdvanceFields() {
 	s.Assert().Nil(err)
 	s.Assert().Equal(100, arraySz)
 	// Position increased by 4
-	s.Assert().Equal(119, r.Pos())
+	s.Assert().Equal(132, r.Pos())
 	// Get expect array end position
 	arrayEndPos := arrayPos + arraySz
-	s.Assert().Equal(215, arrayEndPos)
+	s.Assert().Equal(228, arrayEndPos)
 
 	// Array should be 3 elements in length
 	arrayLen, err := r.ReadSizeField(buf)
 	s.Assert().Nil(err)
 	s.Assert().Equal(3, arrayLen)
 	// Position increased by 4
-	s.Assert().Equal(123, r.Pos())
+	s.Assert().Equal(136, r.Pos())
 
 	// Array index. Read all three index entries
 	// Entry 1
@@ -91,8 +91,8 @@ func (s *ReaderMigrationSuite) TestAdvanceFields() {
 	// Position increased by 3(10+4) since each index entry uses
 	// a 10-byte fixed-length string and a 4-byte size field.
 	// 3*14=42
-	// 123+42=165
-	s.Assert().Equal(165, r.Pos())
+	// 136+42=178
+	s.Assert().Equal(178, r.Pos())
 
 	// Get the first array element's "Name" field
 	err = r.AdvanceTo(buf, "list", "name")
@@ -102,8 +102,8 @@ func (s *ReaderMigrationSuite) TestAdvanceFields() {
 	s.Assert().Equal("From 2020", name)
 	// Position increased by 4+9. String size uses 4 bytes and
 	// string value uses 9 bytes.
-	// 165+13=178
-	s.Assert().Equal(178, r.Pos())
+	// 178+13=183
+	s.Assert().Equal(191, r.Pos())
 
 	// Skip the "Verified" field and advance to second array element's "Name" field
 	err = r.AdvanceToNextElement(buf)
@@ -116,8 +116,8 @@ func (s *ReaderMigrationSuite) TestAdvanceFields() {
 	// Position increased by 4+9+1. String size uses 4 bytes and
 	// string value uses 9 bytes. Also, the skipped field "verified"
 	// uses 1 byte
-	// 178+13+1=192
-	s.Assert().Equal(192, r.Pos())
+	// 191+13+1=205
+	s.Assert().Equal(205, r.Pos())
 
 	// Read the second array element's "Verified" field
 	err = r.AdvanceTo(buf, "list", "verified")
@@ -125,23 +125,23 @@ func (s *ReaderMigrationSuite) TestAdvanceFields() {
 	verified, err := r.ReadBoolField(buf)
 	s.Assert().Nil(err)
 	s.Assert().True(verified)
-	s.Assert().Equal(193, r.Pos())
+	s.Assert().Equal(206, r.Pos())
 
 	// Skip the last array element's "Name" field and advance to "Verified".
 	// This tests skipping an array sub-element.
 	err = r.AdvanceToNextElement(buf)
 	s.Assert().Nil(err)
-	s.Assert().Equal(193, r.Pos())
+	s.Assert().Equal(206, r.Pos())
 	err = r.AdvanceTo(buf, "list", "verified")
 	s.Assert().Nil(err)
 	// Last name field (skipped) read "this is from 2022"
 	// 17 bytes + 4 bytes (size) = 21
-	// 193 + 21 = 214
-	s.Assert().Equal(214, r.Pos())
+	// 206 + 21 = 227
+	s.Assert().Equal(227, r.Pos())
 	verified, err = r.ReadBoolField(buf)
 	s.Assert().Nil(err)
 	s.Assert().True(verified)
-	// 214 + 1 = 215 (arrayEndPos)
+	// 219 + 1 = 220 (arrayEndPos)
 	s.Assert().Equal(arrayEndPos, r.Pos())
 
 	// Skip age field and advance to "rating"
@@ -163,14 +163,14 @@ func (s *ReaderMigrationSuite) TestAdvanceArray() {
 	// Read the index
 	_, err := r.ReadIndex(buf)
 	s.Assert().Nil(err)
-	s.Assert().Equal(101, r.Pos())
+	s.Assert().Equal(114, r.Pos())
 
 	// Record should be 132 bytes in length
 	recordSz, err := r.ReadSizeField(buf)
 	s.Assert().Nil(err)
 	s.Assert().Equal(132, recordSz)
 	// Position increased by 4 (size field is 4 bytes)
-	s.Assert().Equal(105, r.Pos())
+	s.Assert().Equal(118, r.Pos())
 
 	// Company
 	err = r.AdvanceTo(buf, "company")
@@ -179,7 +179,7 @@ func (s *ReaderMigrationSuite) TestAdvanceArray() {
 	s.Assert().Nil(err)
 	s.Assert().Equal("posit", company)
 	// Position increased by 9. Size field is 4 bytes + data is 5 bytes.
-	s.Assert().Equal(114, r.Pos())
+	s.Assert().Equal(127, r.Pos())
 
 	// Skip the "ready" field and the "list" array and advance
 	// to "age". This tests skipping both a regular field and an entire array.
@@ -188,7 +188,7 @@ func (s *ReaderMigrationSuite) TestAdvanceArray() {
 	age, err := r.ReadIntField(buf)
 	s.Assert().Nil(err)
 	s.Assert().Equal(int64(55), age)
-	s.Assert().Equal(225, r.Pos())
+	s.Assert().Equal(238, r.Pos())
 
 	// Read the "rating" field.
 	err = r.AdvanceTo(buf, "rating")
@@ -209,16 +209,16 @@ func (s *ReaderMigrationSuite) TestAdvanceArray() {
 	_, err = io.Copy(tmp, buf)
 
 	// Seek back to the last array element.
-	err = r.Seek(193, tmp)
+	err = r.Seek(209, tmp)
 	s.Assert().Nil(err)
-	// Position set to 193
-	s.Assert().Equal(193, r.Pos())
+	// Position set to 209
+	s.Assert().Equal(209, r.Pos())
 
 	// Read last array element's "Name" field again from the temp file.
 	name, err := r.ReadStringField(tmp)
 	s.Assert().Nil(err)
 	s.Assert().Equal("this is from 2022", name)
-	s.Assert().Equal(214, r.Pos())
+	s.Assert().Equal(230, r.Pos())
 }
 
 func (s *ReaderMigrationSuite) TestAdvanceErrors() {
@@ -228,14 +228,14 @@ func (s *ReaderMigrationSuite) TestAdvanceErrors() {
 	// Read the index
 	_, err := r.ReadIndex(buf)
 	s.Assert().Nil(err)
-	s.Assert().Equal(101, r.Pos())
+	s.Assert().Equal(114, r.Pos())
 
 	// Record should be 132 bytes in length
 	recordSz, err := r.ReadSizeField(buf)
 	s.Assert().Nil(err)
 	s.Assert().Equal(132, recordSz)
 	// Position increased by 4 (size field is 4 bytes)
-	s.Assert().Equal(105, r.Pos())
+	s.Assert().Equal(118, r.Pos())
 
 	// Company
 	err = r.AdvanceTo(buf, "company")
@@ -244,7 +244,7 @@ func (s *ReaderMigrationSuite) TestAdvanceErrors() {
 	s.Assert().Nil(err)
 	s.Assert().Equal("posit", company)
 	// Position increased by 9. Size field is 4 bytes + data is 5 bytes.
-	s.Assert().Equal(114, r.Pos())
+	s.Assert().Equal(127, r.Pos())
 
 	// Attempt to advance to field that doesn't exist
 	err = r.AdvanceTo(buf, "nothere")

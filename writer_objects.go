@@ -21,6 +21,15 @@ func (f *rsfWriter) WriteObject(v any) (int, error) {
 	var err error
 	var sz int
 	if f.pos == 0 && reflect.TypeOf(v).Kind() == reflect.Struct {
+		if f.version > 1 {
+			// Write the index version first
+			sz, err = f.writer.Write(IndexVersion2)
+			if err != nil {
+				return 0, err
+			}
+			totalSz += sz
+		}
+
 		indexSz, err = f.writeIndexObject(reflect.TypeOf(v), &tag{}, indexBuf)
 		if err != nil {
 			return 0, err
@@ -157,7 +166,14 @@ func getTagInfo(v reflect.Type, index int, t, tParent *tag, fieldVal any) (bool,
 		}
 		if tParent.index == t.name {
 			tParent.indexVal = fieldVal
-			tParent.indexSz = t.fixed
+			switch v.Field(index).Type.Kind() {
+			case reflect.String:
+				tParent.indexSz = t.fixed
+				tParent.indexType = int(reflect.String)
+			case reflect.Int, reflect.Int64, reflect.Int32, reflect.Int16, reflect.Int8:
+				tParent.indexSz = sizeInt64
+				tParent.indexType = int(reflect.Int64)
+			}
 		}
 	}
 	return skip, nil

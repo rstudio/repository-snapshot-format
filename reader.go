@@ -14,7 +14,8 @@ type rsfReader struct {
 
 	// When reading an RSF file based on a struct, the first entry
 	// is an index. See `ReadIndex`.
-	index Index
+	index        Index
+	indexVersion int
 
 	// Saves the current position for advancing the reader.
 	at []string

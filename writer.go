@@ -8,13 +8,35 @@ import (
 	"math"
 )
 
+// IndexVersion2 is the first recorded index version. It consists of:
+//   - NULL
+//   - backspace
+//   - ASCII character "2".
+var IndexVersion2 = []byte{0x00, 0x08, 0x32}
+
+var (
+	Version1 = 1
+	Version2 = 2
+)
+
 type rsfWriter struct {
-	writer io.Writer
-	pos    int
+	writer  io.Writer
+	version int
+	pos     int
 }
 
 func NewWriter(f io.Writer) Writer {
-	return &rsfWriter{writer: f}
+	return &rsfWriter{
+		writer:  f,
+		version: Version1,
+	}
+}
+
+func NewWriterWithVersion(f io.Writer, version int) Writer {
+	return &rsfWriter{
+		writer:  f,
+		version: version,
+	}
 }
 
 func (f *rsfWriter) WriteSizeField(pos int, val int, r io.Writer) (int, error) {

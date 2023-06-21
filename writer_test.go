@@ -23,13 +23,13 @@ func TestWriterSuite(t *testing.T) {
 
 func (s *WriterSuite) TestNewWriter() {
 	buf := &bytes.Buffer{}
-	w := NewWriter(buf)
-	s.Assert().Equal(&rsfWriter{writer: buf}, w)
+	w := NewWriterWithVersion(buf, Version2)
+	s.Assert().Equal(&rsfWriter{writer: buf, version: Version2}, w)
 }
 
 func (s *WriterSuite) TestDiscreteWrites() {
 	buf := &bytes.Buffer{}
-	w := NewWriter(buf)
+	w := NewWriterWithVersion(buf, Version2)
 
 	sz, err := w.WriteSizeField(0, 4567, buf)
 	s.Assert().Nil(err)
@@ -93,7 +93,7 @@ func (s *WriterSuite) TestDiscreteWrites() {
 
 func (s *WriterSuite) TestInternalWriteString() {
 	buf := &bytes.Buffer{}
-	w := NewWriter(buf)
+	w := NewWriterWithVersion(buf, Version2)
 
 	// Write a variable-length string
 	t := &tag{}
@@ -120,7 +120,7 @@ func (s *WriterSuite) TestInternalWriteString() {
 
 func (s *WriterSuite) TestInternalWriteArray() {
 	buf := &bytes.Buffer{}
-	w := NewWriter(buf)
+	w := NewWriterWithVersion(buf, Version2)
 
 	a := []struct {
 		Date     string `rsf:"date,fixed:10"`
@@ -216,7 +216,7 @@ func (s *WriterSuite) TestInternalWriteArray() {
 
 func (s *WriterSuite) TestWriteObjectWithArrayIndex() {
 	buf := &bytes.Buffer{}
-	w := NewWriter(buf)
+	w := NewWriterWithVersion(buf, Version2)
 
 	type snap struct {
 		// Skip this field since we can determine it from the array index:
@@ -267,16 +267,19 @@ func (s *WriterSuite) TestWriteObjectWithArrayIndex() {
 
 	sz, err := w.WriteObject(a)
 	s.Assert().Nil(err)
-	// Object should use 317 bytes.
-	s.Assert().Equal(317, sz)
-	s.Assert().Len(buf.Bytes(), 317)
+	// Object should use 338 bytes.
+	s.Assert().Equal(338, sz)
+	s.Assert().Len(buf.Bytes(), 338)
 	// Verify bytes.
 	s.Assert().Equal([]byte{
 		//
 		// Object index header
 		//
+		// Index version
+		0x0, 0x8, 0x32,
+		//
 		// Full size of index header
-		0x78, 0x0, 0x0, 0x0,
+		0x8a, 0x0, 0x0, 0x0,
 		//
 		// Fields Index
 		//
@@ -300,6 +303,14 @@ func (s *WriterSuite) TestWriteObjectWithArrayIndex() {
 		0x6c, 0x69, 0x73, 0x74,
 		// "list" field type 4 indicates array
 		0x4, 0x0, 0x0, 0x0,
+		// is indexed
+		0x1,
+		// index type is string
+		0x18, 0x0, 0x0, 0x0,
+		// index size is 10
+		0xa, 0x0, 0x0, 0x0,
+		// Array type is struct
+		0x19, 0x0, 0x0, 0x0,
 		// "list" field has 3 subfields
 		0x3, 0x0, 0x0, 0x0,
 		//
@@ -323,6 +334,10 @@ func (s *WriterSuite) TestWriteObjectWithArrayIndex() {
 		0x61, 0x6c, 0x69, 0x61, 0x73, 0x65, 0x73,
 		// "verified" field type 4 indicates array
 		0x4, 0x0, 0x0, 0x0,
+		// not indexed
+		0x0,
+		// Array is string type.
+		0x18, 0x0, 0x0, 0x0,
 		// "verified" has zero subfields
 		0x0, 0x0, 0x0, 0x0,
 		//
@@ -449,7 +464,7 @@ func (s *WriterSuite) TestWriteObjectWithArrayIndex() {
 // the array index is an integer value.
 func (s *WriterSuite) TestWriteObjectWithArrayIntIndex() {
 	buf := &bytes.Buffer{}
-	w := NewWriter(buf)
+	w := NewWriterWithVersion(buf, Version2)
 
 	type snap struct {
 		// Skip this field since we can determine it from the array index:
@@ -500,16 +515,19 @@ func (s *WriterSuite) TestWriteObjectWithArrayIntIndex() {
 
 	sz, err := w.WriteObject(a)
 	s.Assert().Nil(err)
-	// Object should use 317 bytes.
-	s.Assert().Equal(317, sz)
-	s.Assert().Len(buf.Bytes(), 317)
+	// Object should use 338 bytes.
+	s.Assert().Equal(338, sz)
+	s.Assert().Len(buf.Bytes(), 338)
 	// Verify bytes.
 	s.Assert().Equal([]byte{
 		//
 		// Object index header
 		//
+		// Index version
+		0x0, 0x8, 0x32,
+		//
 		// Full size of index header
-		0x78, 0x0, 0x0, 0x0,
+		0x8a, 0x0, 0x0, 0x0,
 		//
 		// Fields Index
 		//
@@ -533,6 +551,14 @@ func (s *WriterSuite) TestWriteObjectWithArrayIntIndex() {
 		0x6c, 0x69, 0x73, 0x74,
 		// "list" field type 4 indicates array
 		0x4, 0x0, 0x0, 0x0,
+		// indexed
+		0x1,
+		// index type int64
+		0x6, 0x0, 0x0, 0x0,
+		// index size 10
+		0xa, 0x0, 0x0, 0x0,
+		// array type struct
+		0x19, 0x0, 0x0, 0x0,
 		// "list" field has 3 subfields
 		0x3, 0x0, 0x0, 0x0,
 		//
@@ -556,6 +582,10 @@ func (s *WriterSuite) TestWriteObjectWithArrayIntIndex() {
 		0x61, 0x6c, 0x69, 0x61, 0x73, 0x65, 0x73,
 		// "verified" field type 4 indicates array
 		0x4, 0x0, 0x0, 0x0,
+		// not indexed
+		0x0,
+		// string array type
+		0x18, 0x0, 0x0, 0x0,
 		// "verified" has zero subfields
 		0x0, 0x0, 0x0, 0x0,
 		//
@@ -680,7 +710,7 @@ func (s *WriterSuite) TestWriteObjectWithArrayIntIndex() {
 
 func (s *WriterSuite) TestWriteObjectWithArrayIndexNilSubArray() {
 	buf := &bytes.Buffer{}
-	w := NewWriter(buf)
+	w := NewWriterWithVersion(buf, Version2)
 
 	type snap struct {
 		// Skip this field since we can determine it from the array index:
@@ -711,16 +741,19 @@ func (s *WriterSuite) TestWriteObjectWithArrayIndexNilSubArray() {
 
 	sz, err := w.WriteObject(a)
 	s.Assert().Nil(err)
-	// Object should use 141 bytes.
-	s.Assert().Equal(141, sz)
-	s.Assert().Len(buf.Bytes(), 141)
+	// Object should use 157 bytes.
+	s.Assert().Equal(157, sz)
+	s.Assert().Len(buf.Bytes(), 157)
 	// Verify bytes.
 	s.Assert().Equal([]byte{
 		//
 		// Object index header
 		//
+		// Index version
+		0x0, 0x8, 0x32,
+		//
 		// Full size of index header
-		0x65, 0x0, 0x0, 0x0,
+		0x72, 0x0, 0x0, 0x0,
 		//
 		// Fields Index
 		//
@@ -744,6 +777,14 @@ func (s *WriterSuite) TestWriteObjectWithArrayIndexNilSubArray() {
 		0x6c, 0x69, 0x73, 0x74,
 		// "list" field type 4 indicates array
 		0x4, 0x0, 0x0, 0x0,
+		// indexed
+		0x1,
+		// index field type is string
+		0x18, 0x0, 0x0, 0x0,
+		// index size 10
+		0xa, 0x0, 0x0, 0x0,
+		// array type is struct
+		0x19, 0x0, 0x0, 0x0,
 		// "list" field has 2 subfields
 		0x2, 0x0, 0x0, 0x0,
 		//
@@ -808,7 +849,7 @@ func (s *WriterSuite) TestWriteObjectWithArrayIndexNilSubArray() {
 
 func (s *WriterSuite) TestWriteObjectNoArrayIndex() {
 	buf := &bytes.Buffer{}
-	w := NewWriter(buf)
+	w := NewWriterWithVersion(buf, Version2)
 
 	type snap struct {
 		Skip string `rsf:"-"`
@@ -849,16 +890,19 @@ func (s *WriterSuite) TestWriteObjectNoArrayIndex() {
 
 	sz, err := w.WriteObject(a)
 	s.Assert().Nil(err)
-	// Object should use 194 bytes since there is no array index
-	s.Assert().Equal(194, sz)
-	s.Assert().Len(buf.Bytes(), 194)
+	// Object should use 202 bytes since there is no array index
+	s.Assert().Equal(202, sz)
+	s.Assert().Len(buf.Bytes(), 202)
 	// Verify bytes.
 	s.Assert().Equal([]byte{
 		//
 		// Object index header
 		//
-		// Full size of index header is 88 bytes
-		0x5c, 0x0, 0x0, 0x0,
+		// Index version
+		0x0, 0x8, 0x32,
+		//
+		// Full size of index header
+		0x61, 0x0, 0x0, 0x0,
 		//
 		// Fields Index
 		//
@@ -882,6 +926,10 @@ func (s *WriterSuite) TestWriteObjectNoArrayIndex() {
 		0x6c, 0x69, 0x73, 0x74,
 		// "list" field type 4 indicates array
 		0x4, 0x0, 0x0, 0x0,
+		// not indexed
+		0x0,
+		// Field type is struct.
+		0x19, 0x0, 0x0, 0x0,
 		// "list" array has 3 subfields
 		0x3, 0x0, 0x0, 0x0,
 		//
@@ -960,7 +1008,7 @@ func (s *WriterSuite) TestWriteObjectNoArrayIndex() {
 
 func (s *WriterSuite) TestWriteObjectArray() {
 	buf := &bytes.Buffer{}
-	w := NewWriter(buf)
+	w := NewWriterWithVersion(buf, Version2)
 
 	a := []string{
 		"one",
@@ -1000,7 +1048,7 @@ func (s *WriterSuite) TestWriteObjectArray() {
 
 func (s *WriterSuite) TestWriteObjectNilArray() {
 	buf := &bytes.Buffer{}
-	w := NewWriter(buf)
+	w := NewWriterWithVersion(buf, Version2)
 
 	var a []string
 
@@ -1026,7 +1074,7 @@ func (s *WriterSuite) TestWriteObjectNilArray() {
 
 func (s *WriterSuite) TestWriteObjectInt() {
 	buf := &bytes.Buffer{}
-	w := NewWriter(buf)
+	w := NewWriterWithVersion(buf, Version2)
 
 	a := []int{3, 6, 9, 12, 15}
 
@@ -1057,7 +1105,7 @@ func (s *WriterSuite) TestWriteObjectInt() {
 
 func (s *WriterSuite) TestWriteObjectFloat() {
 	buf := &bytes.Buffer{}
-	w := NewWriter(buf)
+	w := NewWriterWithVersion(buf, Version2)
 
 	a := []float64{3.33, 6.928, 9.1, 12.0, 15.78967}
 
@@ -1092,7 +1140,7 @@ func (s *WriterSuite) TestWriteObjectFloat() {
 
 func (s *WriterSuite) TestWriteObjectArrayOfStructs() {
 	buf := &bytes.Buffer{}
-	w := NewWriter(buf)
+	w := NewWriterWithVersion(buf, Version2)
 
 	type my struct {
 		Name      string
@@ -1145,7 +1193,7 @@ func (s *WriterSuite) TestWriteObjectArrayOfStructs() {
 
 func (s *WriterSuite) TestWriteObjectString() {
 	buf := &bytes.Buffer{}
-	w := NewWriter(buf)
+	w := NewWriterWithVersion(buf, Version2)
 
 	a := "this is a test"
 	sz, err := w.WriteObject(a)
@@ -1170,7 +1218,7 @@ func (s *WriterSuite) TestWriteObjectString() {
 // or arrays. This is supported by RSF, but is not well-supported by printing.
 func (s *WriterSuite) TestWriteObjectArrayOfArrays() {
 	buf := &bytes.Buffer{}
-	w := NewWriter(buf)
+	w := NewWriterWithVersion(buf, Version2)
 
 	type TestObject struct {
 		Arrays [][]string `rsf:"arrays"`
@@ -1188,18 +1236,24 @@ func (s *WriterSuite) TestWriteObjectArrayOfArrays() {
 
 	sz, err := w.WriteObject(a)
 	s.Assert().Nil(err)
-	// Object should use 80 bytes
-	s.Assert().Equal(80, sz)
-	s.Assert().Len(buf.Bytes(), 80)
+	// Object should use 88 bytes
+	s.Assert().Equal(88, sz)
+	s.Assert().Len(buf.Bytes(), 88)
 	// Verify bytes.
 	s.Assert().Equal([]byte{
+		// Index version 2
+		0x0, 0x8, 0x32,
 		// Index size
-		0x16, 0x0, 0x0, 0x0,
+		0x1b, 0x0, 0x0, 0x0,
 		// "arrays" index field
 		0x6, 0x0, 0x0, 0x0,
 		0x61, 0x72, 0x72, 0x61, 0x79, 0x73,
 		// array field type
 		0x4, 0x0, 0x0, 0x0,
+		// Not indexed
+		0x0,
+		// Array type
+		0x17, 0x0, 0x0, 0x0,
 		// zero subfields since not a struct
 		0x0, 0x0, 0x0, 0x0,
 
@@ -1240,13 +1294,13 @@ func (s *WriterSuite) TestWriteObjectArrayOfArrays() {
 	// Cannot yet print arrays of arrays, but falls back gracefully to indicate that
 	// an array of arrays was encountered.
 	pbuf := &bytes.Buffer{}
-	err = Print(pbuf, bufio.NewReader(buf), TestObject{})
+	err = Print(pbuf, bufio.NewReader(buf))
 	fmt.Printf(pbuf.String())
 	s.Require().Nil(err)
 	s.Require().Equal(`
----------------------------------------------
-                TestObject[1]                
----------------------------------------------
+-----------------------------------------
+                Object[1]                
+-----------------------------------------
 arrays (array(2)):
     - cannot print data for arrays of arrays
 `, "\n"+pbuf.String())
