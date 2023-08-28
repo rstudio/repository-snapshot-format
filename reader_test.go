@@ -87,7 +87,7 @@ func (s *ReaderSuite) TestRead() {
 	// Read the index
 	index, err := r.ReadIndex(buf)
 	s.Assert().Nil(err)
-	s.Assert().Equal(114, r.Pos())
+	s.Assert().Equal(117, r.Pos())
 
 	// Check the index
 	s.Assert().Equal(Index{
@@ -142,7 +142,7 @@ func (s *ReaderSuite) TestRead() {
 	s.Assert().Nil(err)
 	s.Assert().Equal(132, recordSz)
 	// Position increased by 4 (size field is 4 bytes)
-	s.Assert().Equal(118, r.Pos())
+	s.Assert().Equal(121, r.Pos())
 
 	// Company
 	err = r.AdvanceTo(buf, "company")
@@ -151,7 +151,7 @@ func (s *ReaderSuite) TestRead() {
 	s.Assert().Nil(err)
 	s.Assert().Equal("posit", company)
 	// Position increased by 9. Size field is 4 bytes + data is 5 bytes.
-	s.Assert().Equal(127, r.Pos())
+	s.Assert().Equal(130, r.Pos())
 
 	// Ready
 	err = r.AdvanceTo(buf, "ready")
@@ -160,7 +160,7 @@ func (s *ReaderSuite) TestRead() {
 	s.Assert().Nil(err)
 	s.Assert().True(ready)
 	// Position increased by 1
-	s.Assert().Equal(128, r.Pos())
+	s.Assert().Equal(131, r.Pos())
 
 	// Array should be 100 bytes in size
 	err = r.AdvanceTo(buf, "list")
@@ -169,14 +169,14 @@ func (s *ReaderSuite) TestRead() {
 	s.Assert().Nil(err)
 	s.Assert().Equal(100, arraySz)
 	// Position increased by 4
-	s.Assert().Equal(132, r.Pos())
+	s.Assert().Equal(135, r.Pos())
 
 	// Array should be 3 elements in length
 	arrayLen, err := r.ReadSizeField(buf)
 	s.Assert().Nil(err)
 	s.Assert().Equal(3, arrayLen)
 	// Position increased by 4
-	s.Assert().Equal(136, r.Pos())
+	s.Assert().Equal(139, r.Pos())
 
 	// Array index. Read all three index entries
 	// Entry 1
@@ -206,13 +206,13 @@ func (s *ReaderSuite) TestRead() {
 	// a 10-byte fixed-length string and a 4-byte size field.
 	// 3*14=42
 	// 136+42=170
-	s.Assert().Equal(178, r.Pos())
+	s.Assert().Equal(181, r.Pos())
 
 	// Discard 28 bytes (14+14) to move to the last array element.
 	err = r.Discard(28, buf)
 	s.Assert().Nil(err)
 	// Position increased by 28 to 178+28=206.
-	s.Assert().Equal(206, r.Pos())
+	s.Assert().Equal(209, r.Pos())
 
 	// Read last array element's "Name" field.
 	err = r.AdvanceTo(buf, "list", "name")
@@ -223,7 +223,7 @@ func (s *ReaderSuite) TestRead() {
 	// Position increased by 4+17. String size uses 4 bytes and
 	// string value uses 17 bytes.
 	// 206+21=227
-	s.Assert().Equal(227, r.Pos())
+	s.Assert().Equal(230, r.Pos())
 
 	// Read last array element's "Verified" field.
 	err = r.AdvanceTo(buf, "list", "verified")
@@ -232,7 +232,7 @@ func (s *ReaderSuite) TestRead() {
 	s.Assert().Nil(err)
 	s.Assert().True(verified)
 	// Position increased by 1.
-	s.Assert().Equal(228, r.Pos())
+	s.Assert().Equal(231, r.Pos())
 
 	// Read age field
 	err = r.AdvanceTo(buf, "age")

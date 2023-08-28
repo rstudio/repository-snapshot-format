@@ -46,6 +46,7 @@ func (f *rsfReader) ReadIndex(r io.Reader) (Index, error) {
 	// index version.
 	if bytes.Equal(header, IndexVersion2) {
 		f.indexVersion = 2
+		f.pos += 3
 	} else {
 		f.indexVersion = 1
 	}
@@ -76,11 +77,13 @@ func (f *rsfReader) ReadIndex(r io.Reader) (Index, error) {
 		sz = int(binary.LittleEndian.Uint32(size))
 	}
 
-	f.index, err = f.readIndexEntries(r, sz, 0)
+	// Position when done reading index will be the current reader position +
+	// the index size, minus the size field length, since we've already read it.
+	f.index, err = f.readIndexEntries(r, f.pos+sz-sizeFieldLen, 0)
 	return f.index, err
 }
 
-func (f *rsfReader) readIndexEntries(r io.Reader, sz, limit int) (Index, error) {
+func (f *rsfReader) readIndexEntries(r io.Reader, finalPos, limit int) (Index, error) {
 	var err error
 
 	entries := make([]IndexEntry, 0)
@@ -94,7 +97,7 @@ func (f *rsfReader) readIndexEntries(r io.Reader, sz, limit int) (Index, error) 
 		pass++
 
 		// When we've completed reading the index, the file position is at the index size (sz).
-		if f.pos == sz {
+		if f.pos == finalPos {
 			break
 		}
 
@@ -161,15 +164,15 @@ func (f *rsfReader) readIndexEntries(r io.Reader, sz, limit int) (Index, error) 
 		}
 
 		// If there's a bad index, we may read past the expected size. This is a serious error.
-		if f.pos > sz {
-			return nil, fmt.Errorf("unexpected index size; at position %d; index size reported is %d", f.pos, sz)
+		if f.pos > finalPos {
+			return nil, fmt.Errorf("unexpected index position %d; index max pos reported is %d", f.pos, finalPos)
 		}
 
 		// For arrays, recursively read the array subfields into a new array of entries.
 		var subfields []IndexEntry
 		if subfieldCount > 0 {
 			// Enumerate the subfields
-			subfields, err = f.readIndexEntries(r, sz, subfieldCount)
+			subfields, err = f.readIndexEntries(r, finalPos, subfieldCount)
 			if err != nil {
 				return nil, err
 			}
