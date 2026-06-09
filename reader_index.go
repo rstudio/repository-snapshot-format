@@ -29,6 +29,14 @@ func (f *rsfReader) SetIndex(newIndex Index) {
 	f.index = newIndex
 }
 
+// GetIndex returns the schema index previously read or set. The returned index
+// is read-only and may be shared across readers — for example to give
+// per-goroutine readers the schema when parsing disjoint record ranges
+// concurrently. It is not part of the Reader interface; callers type-assert.
+func (f *rsfReader) GetIndex() Index {
+	return f.index
+}
+
 func (f *rsfReader) ReadIndex(r io.Reader) (Index, error) {
 	var err error
 
