@@ -19,6 +19,14 @@ type rsfReader struct {
 
 	// Saves the current position for advancing the reader.
 	at []string
+
+	// Reusable read buffers. A reader is used by a single goroutine over one
+	// file, so these can be shared across field reads to avoid allocating on
+	// every call. scratch backs the fixed-size numeric/bool reads; strBuf backs
+	// variable-length string reads. Read*StringField always returns a copied
+	// string (via string(...)), so reusing strBuf between calls is safe.
+	scratch [sizeInt64]byte
+	strBuf  []byte
 }
 
 func NewReader() Reader {
@@ -51,7 +59,7 @@ func (f *rsfReader) Discard(sz int, r *bufio.Reader, fieldNames ...string) error
 }
 
 func (f *rsfReader) ReadSizeField(r io.Reader) (int, error) {
-	bs := make([]byte, sizeFieldLen)
+	bs := f.scratch[:sizeFieldLen]
 	i, err := io.ReadFull(r, bs)
 	if err != nil {
 		return 0, err
@@ -64,7 +72,7 @@ func (f *rsfReader) ReadSizeField(r io.Reader) (int, error) {
 }
 
 func (f *rsfReader) ReadIntField(r io.Reader) (int64, error) {
-	bs := make([]byte, sizeInt64)
+	bs := f.scratch[:sizeInt64]
 	i, err := io.ReadFull(r, bs)
 	if err != nil {
 		return 0, err
@@ -77,7 +85,7 @@ func (f *rsfReader) ReadIntField(r io.Reader) (int64, error) {
 }
 
 func (f *rsfReader) ReadFloatField(r io.Reader) (float64, error) {
-	bs := make([]byte, sizeFloat64)
+	bs := f.scratch[:sizeFloat64]
 	i, err := io.ReadFull(r, bs)
 	if err != nil {
 		return 0, err
@@ -89,8 +97,12 @@ func (f *rsfReader) ReadFloatField(r io.Reader) (float64, error) {
 }
 
 func (f *rsfReader) ReadFixedStringField(sz int, r io.Reader) (string, error) {
-	// Read string field
-	bs := make([]byte, sz)
+	// Read string field into the reusable buffer; string(bs) copies, so the
+	// buffer can be safely overwritten by the next read.
+	if cap(f.strBuf) < sz {
+		f.strBuf = make([]byte, sz)
+	}
+	bs := f.strBuf[:sz]
 	i, err := io.ReadFull(r, bs)
 	if err != nil {
 		return "", err
@@ -104,7 +116,7 @@ func (f *rsfReader) ReadFixedStringField(sz int, r io.Reader) (string, error) {
 
 func (f *rsfReader) ReadStringField(r io.Reader) (string, error) {
 	// read size
-	bs := make([]byte, sizeFieldLen)
+	bs := f.scratch[:sizeFieldLen]
 	i, err := io.ReadFull(r, bs)
 	if err != nil {
 		return "", err
@@ -113,13 +125,17 @@ func (f *rsfReader) ReadStringField(r io.Reader) (string, error) {
 	}
 	f.pos += i
 
-	sz := binary.LittleEndian.Uint32(bs)
-	// Read string field
-	bs = make([]byte, sz)
+	sz := int(binary.LittleEndian.Uint32(bs))
+	// Read string field into the reusable buffer; string(bs) copies, so the
+	// buffer can be safely overwritten by the next read.
+	if cap(f.strBuf) < sz {
+		f.strBuf = make([]byte, sz)
+	}
+	bs = f.strBuf[:sz]
 	i, err = io.ReadFull(r, bs)
 	if err != nil {
 		return "", err
-	} else if i != int(sz) {
+	} else if i != sz {
 		return "", fmt.Errorf("unexpected read size %d; expected %d", i, sz)
 	}
 	f.pos += i
@@ -129,7 +145,7 @@ func (f *rsfReader) ReadStringField(r io.Reader) (string, error) {
 
 func (f *rsfReader) ReadBoolField(r io.Reader) (bool, error) {
 	// Read bool field
-	bs := make([]byte, 1)
+	bs := f.scratch[:1]
 	i, err := io.ReadFull(r, bs)
 	if err != nil {
 		return false, err
